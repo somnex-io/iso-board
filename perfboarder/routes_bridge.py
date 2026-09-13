@@ -4,12 +4,18 @@
       Parts to add, then Perfboarder MCP calls as JSON lines: `cut` (only with --from: wires in
       OLD but not in ROUTES) and `connect`, grouped per net with its name and colour. Run them in
       order, then rename/colour nets from the `board` tool (cuts and merges reshuffle names).
+  python3 perfboarder/routes_bridge.py labels ROUTES.py
+      Every pin with its (col, row) and the hole label Perfboarder shows for it, to compare with
+      the `board` tool.
   python3 perfboarder/routes_bridge.py check ROUTES.py [BOARD.json]
       Exit 0 if the exported board (default perfboarder/somnex-iso-board.json) has the size, part
       positions, nets, net colours and straight segments of ROUTES.py.
 
 Perfboarder holes are 1-based: our (col, row) is Perfboarder (col+1, row+1). Every corner is a
 junction "@col,row", so each wire is one straight run of the route.
+
+Hole labels are different: letters count columns from the RIGHT (OUT) edge, A = our col cols-1,
+and the number counts rows from the top, 01 = our row 0. So the letters depend on the board width.
 """
 import importlib.util
 import json
@@ -50,6 +56,11 @@ def layout(cfg):
         pins.update(zip(holes, (f"{ref}.{n}" for n in names)))
         parts.append({"ref": ref, "kindId": "2x3-box-header-gnd-l-r", "col": holes[0][0] + 1, "row": holes[0][1] + 1, "rotation": 180 if rot else 0})
     return pins, parts
+
+
+def hole_label(col, row, cols):
+    n = cols - 1 - col  # A..Z, then AA..AZ, BA..
+    return (chr(65 + n) if n < 26 else chr(64 + n // 26) + chr(65 + n % 26)) + f"{row + 1:02d}"
 
 
 def net_name(label):
@@ -120,6 +131,11 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if args[:1] == ["calls"] and len(args) in (2, 4):
         calls(args[1], args[3] if len(args) == 4 and args[2] == "--from" else None)
+    elif args[:1] == ["labels"] and len(args) == 2:
+        cfg = load(args[1]).CONFIG
+        assert hole_label(1, 8, 48) == "AU09" and hole_label(45, 7, 48) == "C08"  # read off the 48 x 17 board, 13 Sept
+        for (c, r), p in sorted(layout(cfg)[0].items(), key=lambda kv: kv[1]):
+            print(f"{p:8s} ({c}, {r})  {hole_label(c, r, cfg['cols'])}")
     elif args[:1] == ["check"] and len(args) in (2, 3):
         sys.exit(0 if check(*args[1:]) else 1)
     else:

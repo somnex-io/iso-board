@@ -6,11 +6,17 @@ see, instead of asking him to read coordinates out of a Python file.
 
 ## Setup (as of 13 Sept 2026)
 
-- A board named `somnex-iso-board` is open in Steven's Chrome, sized 48 x 17 to match the planned
-  cut. It shows FRONT (component side) and BACK (wire side, mirrored) side by side: the same
-  convention as `drawing/routing.py` and `drawing/routing.py --mirror`.
-- **Current board: `solver/routes_v3.py`** (commit 9a4de0c). `perfboarder/somnex-iso-board.json`
-  is the last export; `python3 perfboarder/routes_bridge.py check solver/routes_v3.py` confirms it.
+- A board named `somnex-iso-board` is open in Steven's browser, sized to match the planned cut:
+  50 x 19 since 13 Sept (it was 48 x 17). It shows FRONT (component side) and BACK (wire side,
+  mirrored) side by side: the same convention as `drawing/routing.py` and `drawing/routing.py --mirror`.
+- **Current board: `solver/routes_v3.py`.** `perfboarder/somnex-iso-board.json` is the last export;
+  `python3 perfboarder/routes_bridge.py check solver/routes_v3.py` confirms it (size, part positions,
+  nets, colours and segments).
+  **Pending (13 Sept):** the open board and the export are still 48 x 17, so `check` fails (every part
+  off by +1/+1). The resize below has not been run yet: this session had no bridge (see the port note).
+- **48 x 17 to 50 x 19:** the layout moved +1 column and +1 row (empty border ring). On the board
+  that is one call, `resize_board {left: 1, right: 1, top: 1, bottom: 1}`: growing on the left or top
+  shifts everything along, so parts, junctions, nets and colours come with it. No rebuild needed.
 - Perfboarder's agent bridge listens on `localhost:4870`. The MCP server process owns that port,
   so only one Claude session at a time has a working bridge (the one started first); in the
   others every tool fails with "no Perfboarder tab is connected".
@@ -22,10 +28,17 @@ see, instead of asking him to read coordinates out of a Python file.
 ## Coordinates and parts
 
 - Perfboarder holes are 1-based: our `(col, row)` is Perfboarder `(col+1, row+1)`, same axis
-  directions (checked by screenshot). Its hole labels letter columns from the other end (our
-  col 0 is "AV", col 47 is "A"); ignore the letters. Label of our `(col, row)`: letter number
-  `47 - col` (A=0 .. Z=25, AA=26 .. AV=47) then `row + 1` as two digits. Checked against the
-  `board` tool's pin labels on 13 Sept: IN L+ (1,8) is AU09, OUT R- (45,7) is C08.
+  directions (checked by screenshot). This does not depend on the board size; `routes_bridge.py`
+  uses only this.
+- Its hole **labels** are different and DO depend on the width: letters count columns from the
+  right (OUT) edge, the number counts rows from the top. Label of our `(col, row)`: letter number
+  `cols - 1 - col` (A=0 .. Z=25, AA=26 ..) then `row + 1` as two digits. On 50 x 19 that is
+  `49 - col`: our col 0 is "AX", col 49 is "A"; row 0 is "01", row 18 is "19".
+  `python3 perfboarder/routes_bridge.py labels solver/routes_v3.py` prints every pin's label.
+  Derived from the 48 x 17 readings of 13 Sept (IN L+ (1,8) was AU09, OUT R- (45,7) was C08: only
+  "from the right" fits the letters, and only "from the top" fits C08). On 50 x 19 expect the IN
+  header at AV09 to AU11 (IN L+ (2,9) is AV10) and the OUT header at D09 to C11 (OUT R- (46,8) is D09).
+  Not yet read back from the resized board: until it is, trust `@col,row` over the letters.
 - Part kinds defined on the board: `lundahl-ll1517` (origin pin 6, pins named "1" to "12",
   secondary column 14 holes right) and `2x3-box-header-gnd-l-r` (origin GND1; pins GND1 GND2 /
   L+ L- / R+ R-). A header at rot 1 is `rotation: 180` with its origin at the lower right pin.
@@ -67,7 +80,8 @@ exporting during the build records soldering progress too.
 - **"U1/U2 overlaps a junction" (hard).** Corner junctions under a transformer body. On the real
   board they are bends in bare wire on the underside, which the spec allows. Reported once per
   part.
-- **"J1/J2 needs to reach a board edge" (soft).** The headers sit one column in by design.
+- **"J1/J2 needs to reach a board edge" (soft).** The headers sit two columns in by design (the border
+  ring and one wiring column).
 
 ## Gotcha: Perfboarder's checks are looser than this build
 
