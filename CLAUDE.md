@@ -2,6 +2,8 @@
 
 You are picking up a small but fiddly electronics-routing problem. Read `docs/DESIGN-SPEC.md`
 first (5 minutes), then `docs/STATE-OF-PLAY.md`. Everything you need is in this repo.
+Steven also has the layout open in Perfboarder, with an MCP bridge for this repo; read
+`docs/PERFBOARDER.md` before showing him a candidate (its built-in checks are looser than ours).
 
 ## The task
 

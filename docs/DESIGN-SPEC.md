@@ -126,10 +126,21 @@ Left and right channels must end up with the same polarity, which mirroring pres
    the board and do not overlap each other or the headers; each header stays at its own end.
    A transformer body is 13.4 holes tall on a 17-row board, so it can shift at most about one
    row up or down from centre.
-7. Soft preferences (tie-breakers only): hot and cold of each balanced pair adjacent and
-   parallel wherever they run (small loop area matters more than avoiding a transformer
-   footprint); if something must run under a transformer body, prefer ground/shield over the
-   other channel's input pair.
+7. Soft preferences (tie-breakers between otherwise valid layouts, not hard rules):
+   - **Running wire under a transformer is safe.** The body is on top, the wires are on the
+     underside, the board is in between. There is no contact and no hazard at line level.
+   - **The concern is noise, and it depends on which wire goes there.** Prefer ground or shield
+     under a transformer. Avoid putting the other channel's input pair under a can: it is the
+     lowest signal level on the board, and anything it picks up there shows up as
+     channel-to-channel crosstalk.
+   - **Bigger lever than transformer proximity: keep hot and cold of a balanced pair adjacent
+     and parallel wherever they run.** The loop area between the two legs of a pair is what
+     turns stray magnetic flux into a differential signal, which the transformer passes on
+     instead of rejecting. A pair running together under a can beats one leg of the pair
+     detouring around it.
+   - Scored by `solver/check_routes.py` (and the `--opt` objective in `solver/cpsat_route.py`):
+     pair holes with no partner hole beside them weigh more than the other channel's wires
+     under a body.
 
 ## 6. Why it is hard (the structural problem)
 
