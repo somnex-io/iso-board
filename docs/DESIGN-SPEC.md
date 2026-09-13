@@ -1,5 +1,8 @@
 # Design spec — FOH isolation board (Somnex)
 
+_Constraint update, 13 Sept 2026: component positions are no longer fixed and the board may grow
+(more columns preferred, extra rows only as a last resort). See §2, §3 and §5._
+
 ## 1. What the board is
 
 A passive 1:1 transformer isolation board that sits in the ribbon between a WMD Performance
@@ -13,7 +16,9 @@ balanced driver -> rear header -> **this board** -> tile jacks -> FOH.
 ## 2. Board and grid
 
 - Perfboard: Rademacher UP 832EP, epoxy 1.5 mm, pads on both faces, NOT plated through,
-  1.0 mm holes on 2.54 mm pitch. Cut to **48 columns x 17 rows** (122 x 43 mm).
+  1.0 mm holes on 2.54 mm pitch. Planned cut **48 columns x 17 rows** (122 x 43 mm); not cut
+  yet. It may be made longer if needed: prefer more columns with the same 17 rows (long and
+  thin beats short and fat). Extra rows are a last resort.
 - Coordinates `(col, row)`: col 0 at the IN (WMD) end, col 47 at the OUT (tile) end;
   row 0 is the top edge, row 16 the bottom edge. Drawings show the TOP (component) side;
   the "underside" drawing is the same thing mirrored left-right.
@@ -52,7 +57,7 @@ Normal polarity assignment: IN hot -> 1, IN cold -> 4, OUT hot <- 7, OUT cold <-
 **Mirrored assignment (allowed, polarity-preserving):** IN hot -> 4, IN cold -> 1,
 OUT hot <- 11, OUT cold <- 7. Both windings must be reversed together.
 
-Placement on the grid (fixed):
+Default placement on the grid (may be moved, see §5):
 - **T1 (left channel):** primary column at **col 6**, secondary column at **col 20**.
 - **T2 (right channel):** primary column at **col 27**, secondary column at **col 41**.
 - Pin rows as in the table above (rows 3,5,7,9,11,13 primary; 3,5,9,11,13 secondary).
@@ -70,7 +75,7 @@ No wire may pass through any of these 22 holes except as the endpoint of its own
 Both maps were **measured with a meter** on the real WMD and the real tile, viewed from the
 component side. Both are identical: top row GND GND, middle row L+ L-, bottom row R+ R-.
 
-Mounted with the GND row toward row 0 ("rot 0"):
+Default positions, mounted with the GND row toward row 0 ("rot 0"):
 ```
 IN  header (WMD):  (1,7)=GND  (2,7)=GND    (1,8)=L+  (2,8)=L-    (1,9)=R+  (2,9)=R-
 OUT header (tile): (45,7)=GND (46,7)=GND   (45,8)=L+ (46,8)=L-   (45,9)=R+ (46,9)=R-
@@ -117,6 +122,14 @@ Left and right channels must end up with the same polarity, which mirroring pres
    IN long runs used the bottom rows (14-16) and OUT long runs the top rows (0-2). Adjacent
    holes 2.54 mm apart are normal perfboard practice and acceptable.
 5. The bench-test that proves the isolation: every IN pin to every OUT pin must read OPEN.
+6. Placement: transformers and headers may move from their default positions. Bodies stay on
+   the board and do not overlap each other or the headers; each header stays at its own end.
+   A transformer body is 13.4 holes tall on a 17-row board, so it can shift at most about one
+   row up or down from centre.
+7. Soft preferences (tie-breakers only): hot and cold of each balanced pair adjacent and
+   parallel wherever they run (small loop area matters more than avoiding a transformer
+   footprint); if something must run under a transformer body, prefer ground/shield over the
+   other channel's input pair.
 
 ## 6. Why it is hard (the structural problem)
 
@@ -127,8 +140,8 @@ T1's three wires (L+, L-, shield) arrive from the far end of the board; T2's thr
 (R+, R-, shield) start at col 41 rows 5, 9 and 13. Whichever way L+ is brought to (44,8), it
 fences off either the GND pins from T2's shield, or the R pins from T2's signal wires. The
 1-jumper solution in `solver/routes_v2.py` resolves this by letting T2's shield cross two
-bare wires under insulation. Mirroring, header rotation and bridge placement change the
-picture and have not been exhausted; that is the job.
+bare wires under insulation. Mirroring, header rotation, bridge placement and (since 13 Sept) component placement and
+board length change the picture and have not been exhausted; that is the job.
 
 ## 7. Files
 

@@ -8,14 +8,16 @@ first (5 minutes), then `docs/STATE-OF-PLAY.md`. Everything you need is in this 
 Find a **crossing-free** wiring layout for a perfboard, or prove that none exists within the
 allowed freedoms and say so plainly.
 
-- Board: 48 x 17 holes on a 2.54 mm grid (122 x 43 mm). Coordinates are `(col, row)`,
+- Board: planned 48 x 17 holes on a 2.54 mm grid (122 x 43 mm), not cut yet (see freedom 6).
+  Coordinates are `(col, row)`,
   col 0 = IN end, row 0 = top edge. Every wire is bare silver wire on the underside, laid
   hole to hole in orthogonal runs. **Two bare wires may never share a hole** (that is a short),
   and no wire may pass through a hole that has a component pin in it, other than its own two
   endpoints.
-- Fixed items: two Lundahl LL1517 transformers (footprints below), a 2x3 IN header at
-  cols 1-2 rows 7-9, a 2x3 OUT header at cols 45-46 rows 7-9. Header pin maps are MEASURED
-  and fixed (see spec). Transformer positions are fixed.
+- Components: two Lundahl LL1517 transformers (footprints in the spec), a 2x3 IN header and a
+  2x3 OUT header. Default positions: T1 pin columns 6/20, T2 27/41, IN header cols 1-2 rows 7-9,
+  OUT header cols 45-46 rows 7-9. Positions may change (freedom 8). Header pin maps are
+  MEASURED and fixed (see spec).
 - Nets to route (12 point-to-point nets plus one shield tree): see `docs/DESIGN-SPEC.md` §4.
 
 The current best answer (`solver/routes_v2.py`) needs **one insulated jumper** (3 holes,
@@ -36,12 +38,28 @@ solder joint.
    may join the other's wire (a solder joint on a pad mid-run is fine). Only ONE GND pin needs a
    wire; they are joined on the tile.
 5. **Which GND pin the WMD side leaves unconnected**: both IN GND pins stay empty always.
-6. The board may be made longer (more columns at either end) if that is what it takes, but
-   say so clearly; 48 columns is the cut board the user has planned for.
+6. **Board size**: the board may grow if that is what it takes; say so clearly. Prefer more
+   columns with the same 17 rows (long and thin beats short and fat). Extra rows are a last
+   resort; if a solution needs them, call it out loudly. 48 x 17 is the planned cut.
 7. A wire may run under a transformer body (everything is on the underside).
+8. **Component placement**: the transformers and headers may be moved. Bodies must stay on the
+   board and must not overlap each other or the headers. Headers stay at their own end of the
+   board (the ribbons leave through the sleeve ends). Keep the search space small: try a handful
+   of discrete placements, not free placement.
 
-Not allowed: crossing wires, insulated wires, top-side wires, moving the transformers, changing
-the header maps, driving only one winding reversed.
+## Soft preferences (tie-breakers between otherwise valid layouts, not hard rules)
+
+- Keep hot and cold of each balanced pair adjacent and parallel wherever they run. Small loop
+  area between a pair matters more than keeping wires out from under a transformer.
+- If something has to run under a transformer body, prefer ground/shield there over the other
+  channel's input pair.
+
+_Constraint update, 13 Sept 2026 (from Steven): component positions are no longer fixed, and the
+board may grow (columns preferred, rows last resort). Earlier versions of this brief said the
+transformers could not move._
+
+Not allowed: crossing wires, insulated wires, top-side wires, changing the header maps, driving
+only one winding reversed.
 
 ## What has been tried (don't repeat blindly)
 
@@ -67,8 +85,9 @@ A. A routing with zero crossings that passes `solver/final_routes.py`-style chec
 
 B. A short, plain-language proof or strong evidence (exhaustive CP-SAT over all 16
    rotation/mirror combos, each run to proven infeasibility, not a time limit) that no such
-   routing exists on 48 columns, plus the minimum board length (extra columns) at which one
-   does exist, with that routing delivered as in A.
+   routing exists at the default placement on 48 columns, plus the smallest change (placement
+   moves, extra columns; extra rows only as a last resort) at which one does exist, with that
+   routing delivered as in A.
 
 Report which of A or B you delivered and why. If B, keep the 1-jumper solution as the
 recommended build and say so.
