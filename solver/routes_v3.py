@@ -1,29 +1,29 @@
-# Routing v3: measured header maps, ZERO jumpers, planned 50 x 19 board, default component positions.
-# 50 x 19 is the 48 x 17 layout moved +1 column and +1 row, leaving the outer ring of holes empty as a
-# sacrificial border. Same topology and wire shapes as the 48 x 17 version (commit 0a305c9).
+# Routing v3: measured header maps, ZERO jumpers, default component positions. Found on 48 x 17; the board
+# was cut 49 x 18 (13 Sept), so the layout keeps its coordinates and col 48 and row 17 stay empty as spares.
+# Flush, unprotected edges: col 0 (IN L+, rows 6-8) and row 0 (OUT L+, cols 21-37).
 # IN header rot 0 (GND row toward row 0, as v2). OUT header rot 1 (mounted 180 degrees: GND row toward
 # the bottom, reads R- R+ / L- L+ / GND GND top to bottom). T1 MIRRORED (hot 4 / cold 1, out hot 11 /
 # cold 7). T2 normal (hot 1 / cold 4, out hot 7 / cold 11). v2 had T2 mirrored instead.
 # Found by solver/negotiate.py (r01_m10 seed 7), tidied by solver/cpsat_route.py --opt.
 # Check: python3 solver/check_routes.py solver/routes_v3.py
-CONFIG = {'in_rot': 0, 'out_rot': 1, 'm1': 1, 'm2': 0, 'cols': 50, 'rows': 19, 't1': 7, 't2': 28, 'trow': 1, 'in_col': 2, 'out_col': 46, 'hrow': 8}
+CONFIG = {'in_rot': 0, 'out_rot': 1, 'm1': 1, 'm2': 0, 'cols': 49, 'rows': 18, 't1': 6, 't2': 27, 'trow': 0, 'in_col': 1, 'out_col': 45, 'hrow': 7}
 IN_C, OUT_C, BR_C, SH_C = "#1F6FB2", "#D9541E", "#7A7A7A", "#2E8B57"
-IN_MAP  = {(2, 8): 'GND\nn.c.', (3, 8): 'GND\nn.c.', (2, 9): 'L+', (3, 9): 'L-', (2, 10): 'R+', (3, 10): 'R-'}
-OUT_MAP = {(46, 10): 'GND', (47, 10): 'GND', (46, 9): 'L-', (47, 9): 'L+', (46, 8): 'R-', (47, 8): 'R+'}
+IN_MAP  = {(1, 7): 'GND\nn.c.', (2, 7): 'GND\nn.c.', (1, 8): 'L+', (2, 8): 'L-', (1, 9): 'R+', (2, 9): 'R-'}
+OUT_MAP = {(45, 9): 'GND', (46, 9): 'GND', (45, 8): 'L-', (46, 8): 'L+', (45, 7): 'R-', (46, 7): 'R+'}
 # (label, colour, points, is_jumper)
 routes = [
- ('L+ : IN -> T1 pin 4 (mirrored)', IN_C, [(2, 9), (1, 9), (1, 7), (4, 7), (4, 8), (7, 8)], False),
- ('L- : IN -> T1 pin 1 (mirrored)', IN_C, [(3, 9), (5, 9), (5, 14), (7, 14)], False),
- ('R+ : IN -> T2 pin 1', IN_C, [(2, 10), (2, 17), (26, 17), (26, 14), (28, 14)], False),
- ('R- : IN -> T2 pin 4', IN_C, [(3, 10), (3, 16), (25, 16), (25, 13), (29, 13), (29, 8), (28, 8)], False),
- ('T1 bridge 3-6', BR_C, [(7, 10), (8, 10), (8, 4), (7, 4)], False),
- ('T1 bridge 8-12', BR_C, [(21, 12), (19, 12), (19, 4), (21, 4)], False),
- ('T2 bridge 3-6', BR_C, [(28, 10), (27, 10), (27, 4), (28, 4)], False),
- ('T2 bridge 8-12', BR_C, [(42, 12), (40, 12), (40, 4), (42, 4)], False),
- ('L+ : T1 pin 11 -> OUT (mirrored)', OUT_C, [(21, 6), (22, 6), (22, 1), (38, 1), (38, 2), (45, 2), (45, 4), (48, 4), (48, 9), (47, 9)], False),
- ('L- : T1 pin 7 -> OUT (mirrored)', OUT_C, [(21, 14), (22, 14), (22, 11), (20, 11), (20, 7), (23, 7), (23, 2), (37, 2), (37, 3), (38, 3), (38, 15), (43, 15), (43, 11), (41, 11), (41, 9), (46, 9)], False),
- ('R+ : T2 pin 7 -> OUT', OUT_C, [(42, 14), (42, 13), (39, 13), (39, 3), (43, 3), (43, 5), (47, 5), (47, 8)], False),
- ('R- : T2 pin 11 -> OUT', OUT_C, [(42, 6), (46, 6), (46, 8)], False),
- ('shield T1 pin 9 -> OUT GND', SH_C, [(21, 10), (24, 10), (24, 3), (36, 3), (36, 17), (46, 17), (46, 10)], False),
- ('shield T2 pin 9 -> OUT GND', SH_C, [(42, 10), (46, 10)], False),
+ ('L+ : IN -> T1 pin 4 (mirrored)', IN_C, [(1, 8), (0, 8), (0, 6), (3, 6), (3, 7), (6, 7)], False),
+ ('L- : IN -> T1 pin 1 (mirrored)', IN_C, [(2, 8), (4, 8), (4, 13), (6, 13)], False),
+ ('R+ : IN -> T2 pin 1', IN_C, [(1, 9), (1, 16), (25, 16), (25, 13), (27, 13)], False),
+ ('R- : IN -> T2 pin 4', IN_C, [(2, 9), (2, 15), (24, 15), (24, 12), (28, 12), (28, 7), (27, 7)], False),
+ ('T1 bridge 3-6', BR_C, [(6, 9), (7, 9), (7, 3), (6, 3)], False),
+ ('T1 bridge 8-12', BR_C, [(20, 11), (18, 11), (18, 3), (20, 3)], False),
+ ('T2 bridge 3-6', BR_C, [(27, 9), (26, 9), (26, 3), (27, 3)], False),
+ ('T2 bridge 8-12', BR_C, [(41, 11), (39, 11), (39, 3), (41, 3)], False),
+ ('L+ : T1 pin 11 -> OUT (mirrored)', OUT_C, [(20, 5), (21, 5), (21, 0), (37, 0), (37, 1), (44, 1), (44, 3), (47, 3), (47, 8), (46, 8)], False),
+ ('L- : T1 pin 7 -> OUT (mirrored)', OUT_C, [(20, 13), (21, 13), (21, 10), (19, 10), (19, 6), (22, 6), (22, 1), (36, 1), (36, 2), (37, 2), (37, 14), (42, 14), (42, 10), (40, 10), (40, 8), (45, 8)], False),
+ ('R+ : T2 pin 7 -> OUT', OUT_C, [(41, 13), (41, 12), (38, 12), (38, 2), (42, 2), (42, 4), (46, 4), (46, 7)], False),
+ ('R- : T2 pin 11 -> OUT', OUT_C, [(41, 5), (45, 5), (45, 7)], False),
+ ('shield T1 pin 9 -> OUT GND', SH_C, [(20, 9), (23, 9), (23, 2), (35, 2), (35, 16), (45, 16), (45, 9)], False),
+ ('shield T2 pin 9 -> OUT GND', SH_C, [(41, 9), (45, 9)], False),
 ]

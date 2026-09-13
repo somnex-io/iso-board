@@ -3,10 +3,8 @@
 _Constraint update, 13 Sept 2026: component positions are no longer fixed and the board may grow
 (more columns preferred, extra rows only as a last resort). See §2, §3 and §5._
 
-_Board update, 13 Sept 2026 (Steven): the planned cut is 50 x 19, the 48 x 17 layout moved +1 column and
-+1 row so the outer ring of holes is an empty border. All coordinates below are on the 50 x 19 board.
-`solver/routes_v2.py`, `solver/results/` and the solver scripts still use 48 x 17 coordinates (subtract
-1 from each col and row to compare)._
+_Board update, 13 Sept 2026: Steven cut the board 49 x 18. The layout keeps its 48 x 17 coordinates;
+col 48 and row 17 are spare. See §2._
 
 ## 1. What the board is
 
@@ -21,14 +19,16 @@ balanced driver -> rear header -> **this board** -> tile jacks -> FOH.
 ## 2. Board and grid
 
 - Perfboard: Rademacher UP 832EP, epoxy 1.5 mm, pads on both faces, NOT plated through,
-  1.0 mm holes on 2.54 mm pitch. Planned cut **50 columns x 19 rows** (127 x 48 mm); not cut
-  yet. It may be made longer if needed: prefer more columns with the same 19 rows (long and
-  thin beats short and fat). Extra rows are a last resort.
-- **Border ring:** the outermost holes (col 0, col 49, row 0, row 18) carry no wire and no pin. They
-  are sacrificial: a rough cut or a lifted edge pad there cannot break a net. `solver/check_routes.py`
-  reports how many wire holes sit on the ring (0 for v3).
-- Coordinates `(col, row)`: col 0 at the IN (WMD) end, col 49 at the OUT (tile) end;
-  row 0 is the top edge, row 18 the bottom edge. Drawings show the TOP (component) side;
+  1.0 mm holes on 2.54 mm pitch. **Cut 49 columns x 18 rows** (124 x 46 mm) on 13 Sept; one spare
+  board is left. The routing was found on 48 x 17 and keeps its coordinates.
+- **Edges:** col 48 (OUT end) and row 17 (bottom) carry no wire: one spare hole outboard of the
+  wiring on those two edges. The IN end (col 0) and the top edge (row 0) are flush and live: IN L+
+  runs in col 0 (rows 6 to 8) and OUT L+ in row 0 (cols 21 to 37). Handle those two edges with care.
+  The spare went to the edges with more signal wire on them: the bottom edge line carries IN R+
+  (25 holes) and the T1 shield (11), the top only OUT L+ (17); the OUT end carries OUT L+ (6),
+  the IN end IN L+ (3). `solver/check_routes.py` counts wire holes on the edge lines (20 for v3).
+- Coordinates `(col, row)`: col 0 at the IN (WMD) end, col 48 at the OUT (tile) end;
+  row 0 is the top edge, row 17 the bottom edge. Drawings show the TOP (component) side;
   the "underside" drawing is the same thing mirrored left-right.
 - All wiring is on the underside. Components (transformers, headers) sit on top. Wires may run
   under transformer bodies. Wires are bare 0.6 mm silver-plated copper laid flat from pad to pad
@@ -44,12 +44,12 @@ mu-metal housing. 1+1 : 1+1. Pin rows 35.56 mm apart (= 14 holes), pins on 5.08 
 
 ```
  primary column (WMD side)      secondary column (tile side)
-   pin 6  (row 4)                 pin 12 (row 4)
-   pin 5  (row 6)                 pin 11 (row 6)
-   pin 4  (row 8)                 (no pin at row 8)
-   pin 3  (row 10)                pin 9  (row 10)
-   pin 2  (row 12)                pin 8  (row 12)
-   pin 1  (row 14)                pin 7  (row 14)
+   pin 6  (row 3)                 pin 12 (row 3)
+   pin 5  (row 5)                 pin 11 (row 5)
+   pin 4  (row 7)                 (no pin at row 7)
+   pin 3  (row 9)                 pin 9  (row 9)
+   pin 2  (row 11)                pin 8  (row 11)
+   pin 1  (row 13)                pin 7  (row 13)
 ```
 
 Windings: primary A = pins 1(+)..3, primary B = pins 6(+)..4, centre taps 2 and 5 (unused).
@@ -66,17 +66,15 @@ Normal polarity assignment: IN hot -> 1, IN cold -> 4, OUT hot <- 7, OUT cold <-
 OUT hot <- 11, OUT cold <- 7. Both windings must be reversed together.
 
 Default placement on the grid (may be moved, see §5):
-- **T1 (left channel):** primary column at **col 7**, secondary column at **col 21**.
-- **T2 (right channel):** primary column at **col 28**, secondary column at **col 42**.
-- Pin rows as in the table above (rows 4,6,8,10,12,14 primary; 4,6,10,12,14 secondary).
-- Bodies are 47 x 34 mm (18.5 x 13.4 holes), centred between the pin columns, rows ~2.3 to 15.7.
-- In a routes file's `CONFIG` this is `t1 7, t2 28, trow 1`: the tools' pin tables are written for
-  the 48 x 17 rows (3 to 13) and `trow` adds the row offset.
+- **T1 (left channel):** primary column at **col 6**, secondary column at **col 20**.
+- **T2 (right channel):** primary column at **col 27**, secondary column at **col 41**.
+- Pin rows as in the table above (rows 3,5,7,9,11,13 primary; 3,5,9,11,13 secondary).
+- Bodies are 47 x 34 mm (18.5 x 13.4 holes), centred between the pin columns, rows ~1.3 to 14.7.
 
 So the pin holes are:
 ```
-T1: (7,4)=6 (7,6)=5 (7,8)=4 (7,10)=3 (7,12)=2 (7,14)=1   (21,4)=12 (21,6)=11 (21,10)=9 (21,12)=8 (21,14)=7
-T2: (28,4)=6 (28,6)=5 (28,8)=4 (28,10)=3 (28,12)=2 (28,14)=1   (42,4)=12 (42,6)=11 (42,10)=9 (42,12)=8 (42,14)=7
+T1: (6,3)=6 (6,5)=5 (6,7)=4 (6,9)=3 (6,11)=2 (6,13)=1   (20,3)=12 (20,5)=11 (20,9)=9 (20,11)=8 (20,13)=7
+T2: (27,3)=6 (27,5)=5 (27,7)=4 (27,9)=3 (27,11)=2 (27,13)=1   (41,3)=12 (41,5)=11 (41,9)=9 (41,11)=8 (41,13)=7
 ```
 No wire may pass through any of these 22 holes except as the endpoint of its own net.
 
@@ -87,8 +85,8 @@ component side. Both are identical: top row GND GND, middle row L+ L-, bottom ro
 
 Default positions, mounted with the GND row toward row 0 ("rot 0"):
 ```
-IN  header (WMD):  (2,8)=GND  (3,8)=GND    (2,9)=L+  (3,9)=L-    (2,10)=R+  (3,10)=R-
-OUT header (tile): (46,8)=GND (47,8)=GND   (46,9)=L+ (47,9)=L-   (46,10)=R+ (47,10)=R-
+IN  header (WMD):  (1,7)=GND  (2,7)=GND    (1,8)=L+  (2,8)=L-    (1,9)=R+  (2,9)=R-
+OUT header (tile): (45,7)=GND (46,7)=GND   (45,8)=L+ (46,8)=L-   (45,9)=R+ (46,9)=R-
 ```
 Rotated 180° ("rot 1") the same header reads, top to bottom: R- R+ / L- L+ / GND GND.
 
@@ -104,20 +102,20 @@ Twelve point-to-point nets, all bare wire, node-disjoint from each other:
 
 | Net | From | To |
 |---|---|---|
-| T1 3-6 | T1 pin 3 (7,10) | T1 pin 6 (7,4) |
-| T1 8-12 | T1 pin 8 (21,12) | T1 pin 12 (21,4) |
-| T2 3-6 | T2 pin 3 (28,10) | T2 pin 6 (28,4) |
-| T2 8-12 | T2 pin 8 (42,12) | T2 pin 12 (42,4) |
-| IN L+ | IN header L+ | T1 pin 1 (7,14), or pin 4 (7,8) if T1 mirrored |
-| IN L- | IN header L- | T1 pin 4 (7,8), or pin 1 if T1 mirrored |
-| IN R+ | IN header R+ | T2 pin 1 (28,14), or pin 4 (28,8) if T2 mirrored |
-| IN R- | IN header R- | T2 pin 4 (28,8), or pin 1 if T2 mirrored |
-| OUT L+ | T1 pin 7 (21,14), or pin 11 (21,6) if T1 mirrored | OUT header L+ |
-| OUT L- | T1 pin 11 (21,6), or pin 7 if T1 mirrored | OUT header L- |
-| OUT R+ | T2 pin 7 (42,14), or pin 11 (42,6) if T2 mirrored | OUT header R+ |
-| OUT R- | T2 pin 11 (42,6), or pin 7 if T2 mirrored | OUT header R- |
+| T1 3-6 | T1 pin 3 (6,9) | T1 pin 6 (6,3) |
+| T1 8-12 | T1 pin 8 (20,11) | T1 pin 12 (20,3) |
+| T2 3-6 | T2 pin 3 (27,9) | T2 pin 6 (27,3) |
+| T2 8-12 | T2 pin 8 (41,11) | T2 pin 12 (41,3) |
+| IN L+ | IN header L+ | T1 pin 1 (6,13), or pin 4 (6,7) if T1 mirrored |
+| IN L- | IN header L- | T1 pin 4 (6,7), or pin 1 if T1 mirrored |
+| IN R+ | IN header R+ | T2 pin 1 (27,13), or pin 4 (27,7) if T2 mirrored |
+| IN R- | IN header R- | T2 pin 4 (27,7), or pin 1 if T2 mirrored |
+| OUT L+ | T1 pin 7 (20,13), or pin 11 (20,5) if T1 mirrored | OUT header L+ |
+| OUT L- | T1 pin 11 (20,5), or pin 7 if T1 mirrored | OUT header L- |
+| OUT R+ | T2 pin 7 (41,13), or pin 11 (41,5) if T2 mirrored | OUT header R+ |
+| OUT R- | T2 pin 11 (41,5), or pin 7 if T2 mirrored | OUT header R- |
 
-Plus the **shield net**: a tree connecting T1 pin 9 (21,10), T2 pin 9 (42,10) and at least one
+Plus the **shield net**: a tree connecting T1 pin 9 (20,9), T2 pin 9 (41,9) and at least one
 OUT GND hole. It may branch/join (a solder joint on a pad mid-run is fine).
 
 Left and right channels must end up with the same polarity, which mirroring preserves.
@@ -129,13 +127,13 @@ Left and right channels must end up with the same polarity, which mirroring pres
 3. Orthogonal runs only; a corner is at a hole.
 4. Preferred but not required: WMD-side (IN) wires and tile-side (OUT) wires keep to different
    regions of the board, so a slip of the iron cannot bridge the two worlds. In earlier drafts
-   IN long runs used the bottom rows (14-16) and OUT long runs the top rows (0-2) of the 48 x 17 board. Adjacent
+   IN long runs used the bottom rows (14-16) and OUT long runs the top rows (0-2). Adjacent
    holes 2.54 mm apart are normal perfboard practice and acceptable.
 5. The bench-test that proves the isolation: every IN pin to every OUT pin must read OPEN.
 6. Placement: transformers and headers may move from their default positions. Bodies stay on
    the board and do not overlap each other or the headers; each header stays at its own end.
-   A transformer body is 13.4 holes tall on a 19-row board, so it can shift at most about two
-   rows up or down from centre (and any wire it forces onto the border ring breaks §2).
+   A transformer body is 13.4 holes tall on an 18-row board, so from the default it can shift at
+   most about one row up or two rows down.
 7. Soft preferences (tie-breakers between otherwise valid layouts, not hard rules):
    - **Running wire under a transformer is safe.** The body is on top, the wires are on the
      underside, the board is in between. There is no contact and no hazard at line level.
@@ -155,10 +153,10 @@ Left and right channels must end up with the same polarity, which mirroring pres
 ## 6. Why it is hard (the structural problem)
 
 With L+/L- in the middle row of a 2x3 header, those two pins can only be entered from the
-sides (col 45 and col 48 at the OUT end). Those two side approaches split the header's
+sides (col 44 and col 47 at the OUT end). Those two side approaches split the header's
 neighbourhood into a top half (GND row, from above) and a bottom half (R row, from below).
 T1's three wires (L+, L-, shield) arrive from the far end of the board; T2's three wires
-(R+, R-, shield) start at col 42 rows 6, 10 and 14. Whichever way L+ is brought to (45,9), it
+(R+, R-, shield) start at col 41 rows 5, 9 and 13. Whichever way L+ is brought to (44,8), it
 fences off either the GND pins from T2's shield, or the R pins from T2's signal wires. The
 1-jumper solution in `solver/routes_v2.py` resolves this by letting T2's shield cross two
 bare wires under insulation. Mirroring, header rotation, bridge placement and (since 13 Sept) component placement and
@@ -166,12 +164,12 @@ board length change the picture and have not been exhausted; that is the job.
 
 ## 7. Files
 
-- `solver/routes_v3.py`: current build (no jumpers, 50 x 19). `solver/routes_v2.py`: previous build
-  (1 insulated jumper, 48 x 17). Format: list of `(label, colour, [(col,row), ...], is_jumper)`.
+- `solver/routes_v3.py`: current build (no jumpers, 49 x 18). `solver/routes_v2.py`: previous build
+  (1 insulated jumper). Format: list of `(label, colour, [(col,row), ...], is_jumper)`.
 - `solver/final_routes.py`: standalone checker pattern (BARE/INSUL dicts; pass a routes file to check it).
 - `solver/cpsat_route.py`: exact CP-SAT model (OR-Tools). Unvalidated; see CLAUDE.md.
 - `solver/reroute3.py`, `reroute5.py`, `search_nojump.py`: heuristic searches (failed).
 - `drawing/routing.py`: renders top and mirrored underside PNG/SVG from a route file.
 - `drawing/build_doc.py`: builds the 4-page bench sheet PDF (reportlab).
-- `outputs/current/`: current drawings and bench sheet (v3, no jumpers, 50 x 19).
+- `outputs/current/`: current drawings and bench sheet (v3, no jumpers, 49 x 18).
 - `reference/LL1517-datasheet.pdf`, `reference/build_tracker.py` (buy list and build checklist).
