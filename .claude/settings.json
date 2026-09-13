@@ -1,4 +1,7 @@
 {
+  "enabledMcpjsonServers": [
+    "perfboarder"
+  ],
   "hooks": {
     "PostToolUse": [
       {

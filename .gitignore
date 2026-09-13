@@ -7,3 +7,5 @@ cpsat_*.json
 signal_routes.json
 best_route.json
 .venv/
+.DS_Store
+.claude/settings.local.json
