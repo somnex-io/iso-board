@@ -1,0 +1,2 @@
+in_rot 0 out_rot 0 m1 0 m2 0 -> INFEASIBLE 58s
+in_rot 0 out_rot 0 m1 0 m2 1 -> INFEASIBLE 49s
