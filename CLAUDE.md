@@ -110,7 +110,7 @@ is not enforced there). Checkpoint results to `solver/results/*.jsonl` as each r
 
 ```
 pip install ortools matplotlib reportlab
-python3 solver/final_routes.py                     # checker for a hard-coded route set
+python3 solver/final_routes.py [ROUTES.py]         # second-opinion checker (hard-coded route set without an argument)
 python3 solver/check_routes.py ROUTES.py           # independent checker + soft-preference score
 python3 solver/memguard.py 6000 -- python3 solver/negotiate.py --configs all   # heuristic router
 python3 solver/memguard.py 6000 -- python3 solver/cpsat_route.py IN_ROT OUT_ROT M1 M2 [seconds] [--fix/--hint ROUTES.py]

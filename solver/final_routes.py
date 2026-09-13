@@ -23,6 +23,12 @@ INSUL = {
  "T1 pin 9 -> OUT GND (right)": [(20,9),(20,6),(24,6),(24,4),(46,4),(46,7)],
  "T2 pin 11 -> OUT R-": [(41,5),(42,5),(42,12),(46,12),(46,9)],
 }
+import sys
+if len(sys.argv) > 1:  # final_routes.py ROUTES.py: the same checks on a routes file, pads from its CONFIG and header maps
+    _ns = {}; exec(open(sys.argv[1]).read(), _ns); _c = _ns["CONFIG"]
+    PINS = {(t + dc, r + _c["trow"]) for t in (_c["t1"], _c["t2"]) for dc, rs in ((0, PRIM), (14, SEC)) for r in rs.values()}
+    HDR = set(_ns["IN_MAP"]) | set(_ns["OUT_MAP"])
+    BARE = {k: p for k, _, p, j in _ns["routes"] if not j}; INSUL = {k: p for k, _, p, j in _ns["routes"] if j}
 def holes(pts):
     s=[]
     for (a,b),(c,d) in zip(pts,pts[1:]):
@@ -35,6 +41,8 @@ if __name__=="__main__":
     B={k:holes(v) for k,v in BARE.items()}; I={k:holes(v) for k,v in INSUL.items()}
     for (k1,h1),(k2,h2) in itertools.combinations(B.items(),2):
         x=set(h1)&set(h2)
+        if x and k1.startswith("shield") and k2.startswith("shield") and x <= {BARE[k1][0],BARE[k1][-1]} & {BARE[k2][0],BARE[k2][-1]}:
+            print("  shield joint (same net)",k1,"|",k2,sorted(x)); continue
         if x: print("BARE CROSS",k1,"|",k2,sorted(x)); bad=True
     allends={v[0] for v in BARE.values()}|{v[-1] for v in BARE.values()}|{v[0] for v in INSUL.values()}|{v[-1] for v in INSUL.values()}
     for k,v in list(BARE.items())+list(INSUL.items()):

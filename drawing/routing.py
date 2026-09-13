@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Perfboard routing for the WMD -> 2x LL1517 -> Stereo Out Jacks 1U board.
-Grid: 48 columns x 17 rows of 2.54 mm holes (122 x 43 mm), in-line layout.
+Grid: columns x rows of 2.54 mm holes from the routes file's CONFIG (48 x 17 when it has none), in-line layout.
 Coordinates are (col, row); col 0 at the IN end, row 0 at the top edge.
 
 usage: routing.py [--mirror] [--routes solver/routes_v3.py]"""
@@ -12,15 +12,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle, FancyBboxPatch
 
-ROWS = 17
 P = 1.0  # one hole pitch = 1 unit
 
 exec(open(ROUTES).read())
 sys.path.insert(0, HERE)
 from palette import IN_C, OUT_C, SH_C, BR_C, IN_L, IN_R, OUT_L, OUT_R, wire_colour   # overrides the routes file's colours
 # routes_v2.py has no CONFIG: it is IN/OUT rot 0, T2 mirrored, default positions
-CONFIG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **globals().get("CONFIG", {}))
-COLS = CONFIG["cols"]
+CONFIG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, rows=17, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **globals().get("CONFIG", {}))
+COLS, ROWS = CONFIG["cols"], CONFIG["rows"]
 X = (lambda c: COLS - 1 - c) if MIRROR else (lambda c: c)
 TR = CONFIG["trow"]
 
@@ -115,7 +114,7 @@ for i, (col, txt) in enumerate([(IN_L, "IN left (WMD side)"), (IN_R, "IN right (
 SUMMARY = ("One insulated jumper (dashed); everything else crossing-free." if len(JUMPERS) == 1 else
            "No jumpers: no wire crosses or shares a hole with another." if not JUMPERS else f"{len(JUMPERS)} insulated jumpers (dashed).")
 VERSION = "v3" if not JUMPERS else "v2"
-ax.text(COLS - 0.5, ROWS - 0.15, ("UNDERSIDE VIEW (mirrored): this is what you see with the board flipped, wires on this side." if MIRROR else f"TOP VIEW. {COLS} x 17 holes ({COLS * 2.54:.0f} x 43 mm). {VERSION}, measured headers. {SUMMARY}"),
+ax.text(COLS - 0.5, ROWS - 0.15, ("UNDERSIDE VIEW (mirrored): this is what you see with the board flipped, wires on this side." if MIRROR else f"TOP VIEW. {COLS} x {ROWS} holes ({COLS * 2.54:.0f} x {ROWS * 2.54:.0f} mm). {VERSION}, measured headers. {SUMMARY}"),
         ha="right", va="top", fontsize=7, color="#555")
 
 fig.tight_layout()

@@ -5,8 +5,8 @@
       OLD but not in ROUTES) and `connect`, grouped per net with its name and colour. Run them in
       order, then rename/colour nets from the `board` tool (cuts and merges reshuffle names).
   python3 perfboarder/routes_bridge.py check ROUTES.py [BOARD.json]
-      Exit 0 if the exported board (default perfboarder/somnex-iso-board.json) has exactly the
-      nets and straight segments of ROUTES.py.
+      Exit 0 if the exported board (default perfboarder/somnex-iso-board.json) has the size, part
+      positions, nets, net colours and straight segments of ROUTES.py.
 
 Perfboarder holes are 1-based: our (col, row) is Perfboarder (col+1, row+1). Every corner is a
 junction "@col,row", so each wire is one straight run of the route.
@@ -87,7 +87,16 @@ def calls(path, old_path=None):
 
 def check(path, board_path="perfboarder/somnex-iso-board.json"):
     mod, board = load(path), json.load(open(board_path))
-    pins, _ = layout(mod.CONFIG)
+    pins, parts = layout(mod.CONFIG)
+    # Pins are matched by name, so without these a board of the wrong size or with a part moved would still pass.
+    size_ok = (board["board"]["cols"], board["board"]["rows"]) == (mod.CONFIG["cols"], mod.CONFIG.get("rows", 17))
+    if not size_ok:
+        print(f"SIZE board is {board['board']['cols']} x {board['board']['rows']}, routes are {mod.CONFIG['cols']} x {mod.CONFIG.get('rows', 17)}")
+    got_p = {p["ref"]: (p["at"]["col"], p["at"]["row"], p["rotation"]) for p in board["parts"]}
+    want_p = {p["ref"]: (p["col"], p["row"], p["rotation"]) for p in parts}
+    bad_p = sorted(r for r in want_p.keys() | got_p.keys() if want_p.get(r) != got_p.get(r))
+    for r in bad_p:
+        print(f"PART {r}: board has (col, row, rotation) {got_p.get(r)}, routes have {want_p.get(r)}")
     holes = {v: k for k, v in pins.items()}
     pt = lambda s: tuple(int(v) - 1 for v in s[1:].split(",")) if s.startswith("@") else holes[s]
     got = {n["name"]: {frozenset(map(pt, w)) for w in n["wires"]} for n in board["nets"]}
@@ -102,8 +111,9 @@ def check(path, board_path="perfboarder/somnex-iso-board.json"):
     bad_c = sorted(n for n in want_c if got_c.get(n) != want_c[n])
     for n in bad_c:
         print(f"COLOUR {n}: board has {got_c.get(n)}, palette has {want_c[n]}")
-    print(f"{len(got)} nets, {sum(map(len, got.values()))} segments: {'match' if not bad else 'DIFFERENT'}; colours {'match' if not bad_c else 'DIFFERENT'}")
-    return not bad and not bad_c
+    print(f"{len(got)} nets, {sum(map(len, got.values()))} segments: {'match' if not bad else 'DIFFERENT'}; colours {'match' if not bad_c else 'DIFFERENT'}; "
+          f"size and parts {'match' if size_ok and not bad_p else 'DIFFERENT'}")
+    return not bad and not bad_c and size_ok and not bad_p
 
 
 if __name__ == "__main__":

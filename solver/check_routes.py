@@ -13,7 +13,6 @@ Exit code 0 only if the layout is valid and has zero jumpers.
 import sys
 from itertools import combinations
 
-ROWS = 17
 # DESIGN-SPEC section 3, literal tables
 PRIMARY = {6: 3, 5: 5, 4: 7, 3: 9, 2: 11, 1: 13}
 SECONDARY = {12: 3, 11: 5, 9: 9, 8: 11, 7: 13}
@@ -60,7 +59,7 @@ def holes(pts):
     return out
 
 
-def check(routes, cfg, cols=48, place=None):
+def check(routes, cfg, cols=48, place=None, rows=17):
     nets, pads, sh_src, out_gnd, in_gnd, bodies, windings = spec(*cfg, **(place or {}))
     errs, notes = [], []
     H = []
@@ -70,7 +69,7 @@ def check(routes, cfg, cols=48, place=None):
         except ValueError as ex: errs.append(f"GEOMETRY {label}: {ex}"); h = list(pts)
         if len(set(h)) != len(h): errs.append(f"SELF-OVERLAP {label}")
         for c, r in h:
-            if not (0 <= c < cols and 0 <= r < ROWS): errs.append(f"OFF BOARD {label} {(c, r)}")
+            if not (0 <= c < cols and 0 <= r < rows): errs.append(f"OFF BOARD {label} {(c, r)}")
         H.append(h)
     # classify every route by endpoints
     kind = []
@@ -123,6 +122,7 @@ def check(routes, cfg, cols=48, place=None):
     OUT = {c for i, k in enumerate(kind) if k.startswith("OUT") or k.endswith("8-12") or k == "SH?" for c in H[i]}
     touch = sum(1 for (c, r) in IN for d in ((1, 0), (-1, 0), (0, 1), (0, -1)) if (c + d[0], r + d[1]) in OUT)
     notes.append(f"IN/OUT adjacent hole pairs: {touch}; total wire holes: {sum(len(h) for h in H)}")
+    notes.append(f"wire holes on the outer ring of the board: {sum(1 for h in H for c, r in h if c in (0, cols - 1) or r in (0, rows - 1))}")
     # soft preferences (tie-break score, lower is better; weights as in cpsat_route.py)
     by = {k: set(h) for k, h in zip(kind, H) if k != "SH?"}
     wires = sum(len(h) for k, h in zip(kind, H) if k != "SH?") + len(sh_holes)
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     conf = ns.get("CONFIG", {})
     cfg = tuple(map(int, args[1:5])) if len(args) >= 5 else (conf["in_rot"], conf["out_rot"], conf["m1"], conf["m2"])
     place = {k: conf[k] for k in ("t1", "t2", "trow", "in_col", "out_col", "hrow") if k in conf}
-    errs, notes = check(ns["routes"], cfg, conf.get("cols", 48), place)
+    errs, notes = check(ns["routes"], cfg, conf.get("cols", 48), place, conf.get("rows", 17))
     for n in notes: print("  note:", n)
     for e in errs: print("  ERROR:", e)
     print("VALID, zero jumpers" if not errs else f"INVALID ({len(errs)} problems)")

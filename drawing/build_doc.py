@@ -89,10 +89,11 @@ import os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROUTES = sys.argv[sys.argv.index("--routes") + 1] if "--routes" in sys.argv else os.path.join(HERE, "..", "solver", "routes_v3.py")
 RF = {}; exec(open(ROUTES).read(), RF)
-CFG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **RF.get("CONFIG", {}))
+CFG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, rows=17, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **RF.get("CONFIG", {}))
 ROUTES_L = RF["routes"]
 assert not any(r[3] for r in ROUTES_L), "this sheet covers jumper-free layouts; the 1-jumper v2 sheet is in outputs/v2-1-jumper/"
-COLS, TR, HR = CFG["cols"], CFG["trow"], CFG["hrow"]
+COLS, ROWS, TR, HR = CFG["cols"], CFG["rows"], CFG["trow"], CFG["hrow"]
+SIZE = f"{COLS} x {ROWS} holes ({COLS * 2.54:.0f} x {ROWS * 2.54:.0f} mm)"
 PRIM = {6: 3, 5: 5, 4: 7, 3: 9, 2: 11, 1: 13}; SEC = {12: 3, 11: 5, 9: 9, 8: 11, 7: 13}
 TPOS = {"T1": CFG["t1"], "T2": CFG["t2"]}
 MIR = {"T1": CFG["m1"], "T2": CFG["m2"]}
@@ -132,7 +133,7 @@ ROT = lambda r: "GND pins toward the BOTTOM edge (row %d), i.e. turned 180°" % 
 
 # ===== PAGE 1: reference =====
 story.append(P("FOH isolation board: bench sheet, v3 (measured headers, no jumpers)", H1))
-story.append(P(f"Two Lundahl LL1517 transformers on a {COLS} x 17 hole perfboard ({COLS * 2.54:.0f} x 43 mm), sitting in the ribbon between the "
+story.append(P(f"Two Lundahl LL1517 transformers on a {COLS} x {ROWS} hole perfboard ({COLS * 2.54:.0f} x {ROWS * 2.54:.0f} mm), sitting in the ribbon between the "
                "WMD's rear balanced-out header and the Stereo Out Jacks 1U tile. 1:1, passive, galvanically isolated. "
                "Four signals cross through iron; no ground ever crosses. No insulated jumpers: every wire is bare and nothing crosses.", B))
 
@@ -228,8 +229,8 @@ story.append(PageBreak())
 story.append(P("4. Build order", H1))
 story.append(P("A. Prepare", H2C))
 for t in [
-    f"Cut the board to {COLS} x 17 holes ({COLS * 2.54:.0f} x 43 mm). Score both faces along a hole row with a knife against a rule, snap over a table edge, tidy with P120 on the block. Backup: junior hacksaw (32 TPI). Wipe the glass dust off.",
-    f"Mark the two transformer footprints on TOP: primary column at col {CFG['t1']} (T1) and col {CFG['t2']} (T2), secondary column 14 holes on, at col {CFG['t1'] + 14} and col {CFG['t2'] + 14}. Pins at rows 3, 5, 7, 9, 11, 13 (primary) and 3, 5, 9, 11, 13 (secondary). Check a transformer physically against the marks before drilling.",
+    f"Cut the board to {SIZE}. Score both faces along a hole row with a knife against a rule, snap over a table edge, tidy with P120 on the block. Backup: junior hacksaw (32 TPI). Wipe the glass dust off.",
+    f"Mark the two transformer footprints on TOP: primary column at col {CFG['t1']} (T1) and col {CFG['t2']} (T2), secondary column 14 holes on, at col {CFG['t1'] + 14} and col {CFG['t2'] + 14}. Pins at rows {', '.join(str(r + TR) for r in PRIM.values())} (primary) and {', '.join(str(r + TR) for r in SEC.values())} (secondary). Check a transformer physically against the marks before drilling.",
     "Drill the 22 footprint holes to 1.5 mm with the HOTO at 600 rpm, light pressure. The existing hole centres the bit. All other holes stay 1.0 mm.",
     "Sharpie the routing on the UNDERSIDE using page 3 and the colour key.",
 ]: story.append(ck(t))
