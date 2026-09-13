@@ -2,6 +2,7 @@
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import (BaseDocTemplate, PageTemplate, Frame, Paragraph, Spacer, Table, TableStyle,
                                 Image, NextPageTemplate, PageBreak, KeepTogether)
@@ -212,15 +213,20 @@ story.append(P("Left and right channels have their own colours: blue and purple 
                "A WMD-side wire (blue or purple) touching a tile-side one (red or orange) anywhere is a failed board.", SM))
 
 # ===== PAGES 2-3: drawings =====
+def drawing(path):  # full frame width, at the PNG's own aspect ratio (routing.py makes it taller for more rows)
+    w, h = ImageReader(path).getSize()
+    return Image(path, width=LW - 24 * mm, height=(LW - 24 * mm) * h / w)
 story.append(NextPageTemplate("land"))
 story.append(PageBreak())
 story.append(P("Routing, TOP view (component side). Column 0 is the IN end, row 0 is the top edge.", H2))
-story.append(Image("outputs/iso-board-routing.png", width=LW - 24 * mm, height=(LW - 24 * mm) * 0.4))
-story.append(P("v3 for the measured headers. Bodies on top, every wire underneath. Machine-checked (solver/check_routes.py): no wire crosses another "
+story.append(drawing("outputs/iso-board-routing.png"))
+RING_EMPTY = not any(c in (0, COLS - 1) or r in (0, ROWS - 1) for *_, pts, _ in ROUTES_L for c, r in pts)
+story.append(P("v3 for the measured headers. " + ("The outermost ring of holes gets no wire on purpose: a spare border in case an edge chips. " if RING_EMPTY else "")
+               + "Bodies on top, every wire underneath. Machine-checked (solver/check_routes.py): no wire crosses another "
                "and no two wires share a hole, except the two shield wires that end on the same GND pin.", SM))
 story.append(PageBreak())
 story.append(P("Routing, UNDERSIDE view (mirrored). This is what you see with the board flipped, wires facing you.", H2))
-story.append(Image("outputs/iso-board-routing-underside.png", width=LW - 24 * mm, height=(LW - 24 * mm) * 0.4))
+story.append(drawing("outputs/iso-board-routing-underside.png"))
 story.append(P("Use this page at the iron. The IN end is now on the RIGHT. Lay silver wire flat from pad to pad along the drawn path; solder each pad it lands on; do not let bare wire cross another bare wire.", SM))
 
 # ===== PAGE 4: build order =====

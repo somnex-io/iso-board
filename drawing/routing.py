@@ -35,7 +35,7 @@ IN_HDR = dict(cols=(CONFIG["in_col"], CONFIG["in_col"] + 1), rows=(HR, HR + 1, H
 OUT_HDR = dict(cols=(CONFIG["out_col"], CONFIG["out_col"] + 1), rows=(HR, HR + 1, HR + 2))
 JUMPERS = [r for r in routes if r[3]]
 
-fig, ax = plt.subplots(figsize=(16, 6.4), dpi=170)
+fig, ax = plt.subplots(figsize=(16, 6.4 * (ROWS + 3.6) / 20.6), dpi=170)  # 6.4 in for 17 rows: same print scale at any row count
 ax.set_xlim(-1.2, COLS + 0.2)
 ax.set_ylim(ROWS + 1.0, -2.6)  # row 0 at top
 ax.set_aspect("equal")
