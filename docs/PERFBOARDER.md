@@ -6,17 +6,17 @@ see, instead of asking him to read coordinates out of a Python file.
 
 ## Setup (as of 13 Sept 2026)
 
-- A board named `somnex-iso-board` is open in Steven's browser, sized to match the planned cut:
-  50 x 19 since 13 Sept (it was 48 x 17). It shows FRONT (component side) and BACK (wire side,
+- A board named `somnex-iso-board` is open in Steven's browser, sized to match the real board:
+  49 x 18 as cut on 13 Sept (it was 48 x 17, the planned cut). It shows FRONT (component side) and BACK (wire side,
   mirrored) side by side: the same convention as `drawing/routing.py` and `drawing/routing.py --mirror`.
 - **Current board: `solver/routes_v3.py`.** `perfboarder/somnex-iso-board.json` is the last export;
   `python3 perfboarder/routes_bridge.py check solver/routes_v3.py` confirms it (size, part positions,
   nets, colours and segments).
-  **Pending (13 Sept):** the open board and the export are still 48 x 17, so `check` fails (every part
-  off by +1/+1). The resize below has not been run yet: this session had no bridge (see the port note).
-- **48 x 17 to 50 x 19:** the layout moved +1 column and +1 row (empty border ring). On the board
-  that is one call, `resize_board {left: 1, right: 1, top: 1, bottom: 1}`: growing on the left or top
-  shifts everything along, so parts, junctions, nets and colours come with it. No rebuild needed.
+  **Pending (13 Sept):** the open board and the export are still 48 x 17, so `check` fails on size
+  only. The resize below has not been run yet: this session had no bridge (see the port note).
+- **48 x 17 to 49 x 18:** the layout keeps its coordinates; the spare column and row go at the OUT
+  end and the bottom. On the board that is one call, `resize_board {right: 1, bottom: 1}`: growing on
+  the right or bottom moves nothing, so parts, junctions, nets and colours stay put. No rebuild.
 - Perfboarder's agent bridge listens on `localhost:4870`. The MCP server process owns that port,
   so only one Claude session at a time has a working bridge (the one started first); in the
   others every tool fails with "no Perfboarder tab is connected".
@@ -32,13 +32,14 @@ see, instead of asking him to read coordinates out of a Python file.
   uses only this.
 - Its hole **labels** are different and DO depend on the width: letters count columns from the
   right (OUT) edge, the number counts rows from the top. Label of our `(col, row)`: letter number
-  `cols - 1 - col` (A=0 .. Z=25, AA=26 ..) then `row + 1` as two digits. On 50 x 19 that is
-  `49 - col`: our col 0 is "AX", col 49 is "A"; row 0 is "01", row 18 is "19".
+  `cols - 1 - col` (A=0 .. Z=25, AA=26 ..) then `row + 1` as two digits. On 49 x 18 that is
+  `48 - col`: our col 0 is "AW", col 48 is "A"; row 0 is "01", row 17 is "18".
   `python3 perfboarder/routes_bridge.py labels solver/routes_v3.py` prints every pin's label.
   Derived from the 48 x 17 readings of 13 Sept (IN L+ (1,8) was AU09, OUT R- (45,7) was C08: only
-  "from the right" fits the letters, and only "from the top" fits C08). On 50 x 19 expect the IN
-  header at AV09 to AU11 (IN L+ (2,9) is AV10) and the OUT header at D09 to C11 (OUT R- (46,8) is D09).
-  Not yet read back from the resized board: until it is, trust `@col,row` over the letters.
+  "from the right" fits the letters, and only "from the top" fits C08). Growing the board at the
+  OUT end moves every letter on by one while our coordinates stay: on 49 x 18 expect the IN header
+  at AV08 to AU10 (IN L+ (1,8) is AV09, was AU09) and the OUT header at D08 to C10 (OUT R- (45,7) is
+  D08, was C08). Not yet read back from the resized board: until it is, trust `@col,row` over the letters.
 - Part kinds defined on the board: `lundahl-ll1517` (origin pin 6, pins named "1" to "12",
   secondary column 14 holes right) and `2x3-box-header-gnd-l-r` (origin GND1; pins GND1 GND2 /
   L+ L- / R+ R-). A header at rot 1 is `rotation: 180` with its origin at the lower right pin.
@@ -80,8 +81,8 @@ exporting during the build records soldering progress too.
 - **"U1/U2 overlaps a junction" (hard).** Corner junctions under a transformer body. On the real
   board they are bends in bare wire on the underside, which the spec allows. Reported once per
   part.
-- **"J1/J2 needs to reach a board edge" (soft).** The headers sit two columns in by design (the border
-  ring and one wiring column).
+- **"J1/J2 needs to reach a board edge" (soft).** The headers sit in from the ends by design: J1 one
+  column (col 0 carries IN L+), J2 two (col 47 carries OUT L+, col 48 is spare).
 
 ## Gotcha: Perfboarder's checks are looser than this build
 
