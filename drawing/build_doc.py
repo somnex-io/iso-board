@@ -78,58 +78,125 @@ doc.addPageTemplates([portrait, land])
 
 story = []
 
+# ---------- layout data: everything layout-specific below comes from the routes file ----------
+import os, sys
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROUTES = sys.argv[sys.argv.index("--routes") + 1] if "--routes" in sys.argv else os.path.join(HERE, "..", "solver", "routes_v3.py")
+RF = {}; exec(open(ROUTES).read(), RF)
+CFG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **RF.get("CONFIG", {}))
+ROUTES_L = RF["routes"]
+assert not any(r[3] for r in ROUTES_L), "this sheet covers jumper-free layouts; the 1-jumper v2 sheet is in outputs/v2-1-jumper/"
+COLS, TR, HR = CFG["cols"], CFG["trow"], CFG["hrow"]
+PRIM = {6: 3, 5: 5, 4: 7, 3: 9, 2: 11, 1: 13}; SEC = {12: 3, 11: 5, 9: 9, 8: 11, 7: 13}
+TPOS = {"T1": CFG["t1"], "T2": CFG["t2"]}
+MIR = {"T1": CFG["m1"], "T2": CFG["m2"]}
+CH = {"T1": "L", "T2": "R"}
+def pin(t, n): return (TPOS[t], PRIM[n] + TR) if n in PRIM else (TPOS[t] + 14, SEC[n] + TR)
+NAMES = {pin(t, n): f"{t} pin {n}" for t in TPOS for n in [*PRIM, *SEC]}
+for (c, r), lab in RF["IN_MAP"].items(): NAMES[(c, r)] = "IN " + lab.split("\n")[0]
+for (c, r), lab in RF["OUT_MAP"].items(): NAMES[(c, r)] = "OUT " + lab.split("\n")[0]
+def xy(c): return f"({c[0]},{c[1]})"
+def name(c): return f"{NAMES[c]} {xy(c)}" if c in NAMES else xy(c)
+def describe(pts):
+    parts = []
+    segs = list(zip(pts, pts[1:]))
+    for i, ((a, b), (c, d)) in enumerate(segs):
+        last = i == len(segs) - 1
+        if b == d: parts.append(f"along row {b} " + (f"into {name((c, d))}" if last else f"to col {c}"))
+        else: parts.append(("down" if d > b else "up") + f" col {a} " + (f"into {name((c, d))}" if last else f"to row {d}"))
+    return f"{name(pts[0])}: " + ", ".join(parts) + "."
+def longest(pts):
+    (a, b), (c, d) = max(zip(pts, pts[1:]), key=lambda s: abs(s[0][0] - s[1][0]) + abs(s[0][1] - s[1][1]))
+    return f"row {b}" if b == d else f"col {a}"
+IN_W = [r for r in ROUTES_L if ": IN" in r[0]]
+OUT_W = [r for r in ROUTES_L if "-> OUT" in r[0] and not r[0].startswith("shield")]
+SH_W = [r for r in ROUTES_L if r[0].startswith("shield")]
+BR_W = [r for r in ROUTES_L if "bridge" in r[0]]
+def bridge_col(pts): return max(zip(pts, pts[1:]), key=lambda s: abs(s[0][1] - s[1][1]))[0][0]
+BRIDGES = ", ".join(f"{r[0].replace(' bridge', '')} on col {bridge_col(r[2])}" for r in BR_W)
+GND_USED = sorted({r[2][-1] for r in SH_W if r[2][-1] in NAMES and NAMES[r[2][-1]] == "OUT GND"})
+GND_FREE = sorted(c for c, lab in RF["OUT_MAP"].items() if lab.startswith("GND") and c not in GND_USED)
+def role(t, n):
+    ch, m = CH[t], MIR[t]
+    return {1: f"IN {ch}{'-' if m else '+'} ({'cold' if m else 'hot'})", 4: f"IN {ch}{'+' if m else '-'} ({'hot' if m else 'cold'})",
+            7: f"OUT {ch}{'-' if m else '+'} ({'ring' if m else 'tip'})", 11: f"OUT {ch}{'+' if m else '-'} ({'tip' if m else 'ring'})",
+            3: "bridge to 6", 6: "bridge from 3", 8: "bridge to 12", 12: "bridge from 8", 2: "nothing", 5: "nothing"}[n]
+def shield_end(t):
+    r = next(r for r in SH_W if r[2][0] == pin(t, 9))
+    end = r[2][-1]
+    return f"OUT GND {xy(end)}" if NAMES.get(end) == "OUT GND" else f"joins the other shield wire at {xy(end)}"
+MIRRORED = [t for t in TPOS if MIR[t]]
+ROT = lambda r: "GND pins toward the BOTTOM edge (row %d), i.e. turned 180°" % (HR + 2) if r else "GND pins toward the top edge (row %d)" % HR
+
 # ===== PAGE 1: reference =====
-story.append(P("FOH isolation board: bench sheet, v2 (measured headers)", H1))
-story.append(P("Two Lundahl LL1517 transformers on a 48 x 17 hole perfboard (122 x 43 mm), sitting in the ribbon between the "
+story.append(P("FOH isolation board: bench sheet, v3 (measured headers, no jumpers)", H1))
+story.append(P(f"Two Lundahl LL1517 transformers on a {COLS} x 17 hole perfboard ({COLS * 2.54:.0f} x 43 mm), sitting in the ribbon between the "
                "WMD's rear balanced-out header and the Stereo Out Jacks 1U tile. 1:1, passive, galvanically isolated. "
-               "Four signals cross through iron; no ground ever crosses.", B))
+               "Four signals cross through iron; no ground ever crosses. No insulated jumpers: every wire is bare and nothing crosses.", B))
 
 story.append(P("1. LL1517 pin key", H2))
-pin_tbl = Table([
-    [P("<b>Pin</b>", CELL), P("<b>What it is</b>", CELL), P("<b>T1 (LEFT)</b>", CELL), P("<b>T2 (RIGHT), mirrored</b>", CELL)],
-    [P("1", CELLB), P("primary A start (+)", CELL), P("IN L+ (hot)", CELL), P("IN R- (cold)", CELL)],
-    [P("3", CELLB), P("primary A end", CELL), P("bridge to 6", CELL), P("bridge to 6", CELL)],
-    [P("6", CELLB), P("primary B start (+)", CELL), P("bridge from 3", CELL), P("bridge from 3", CELL)],
-    [P("4", CELLB), P("primary B end", CELL), P("IN L- (cold)", CELL), P("IN R+ (hot)", CELL)],
-    [P("2, 5", CELLB), P("centre taps", CELL), P("nothing", CELL), P("nothing", CELL)],
-    [P("7", CELLB), P("secondary A start (+)", CELL), P("OUT L+ (tip)", CELL), P("OUT R- (ring)", CELL)],
-    [P("8", CELLB), P("secondary A end", CELL), P("bridge to 12", CELL), P("bridge to 12", CELL)],
-    [P("12", CELLB), P("secondary B start (+)", CELL), P("bridge from 8", CELL), P("bridge from 8", CELL)],
-    [P("11", CELLB), P("secondary B end", CELL), P("OUT L- (ring)", CELL), P("OUT R+ (tip)", CELL)],
-    [P("9", CELLB), P("core + housing", CELL), P("OUT GND (45,7)", CELL), P("joins T1's shield wire via the jumper", CELL)],
-], colWidths=[11 * mm, 34 * mm, 30 * mm, 38 * mm])
+hdr_t = lambda t: f"<b>{t} ({'LEFT' if t == 'T1' else 'RIGHT'}){', mirrored' if MIR[t] else ''}</b>"
+rows = [[P("<b>Pin</b>", CELL), P("<b>What it is</b>", CELL), P(hdr_t("T1"), CELL), P(hdr_t("T2"), CELL)]]
+for n, what in [(1, "primary A start (+)"), (3, "primary A end"), (6, "primary B start (+)"), (4, "primary B end")]:
+    rows.append([P(str(n), CELLB), P(what, CELL), P(role("T1", n), CELL), P(role("T2", n), CELL)])
+rows.append([P("2, 5", CELLB), P("centre taps", CELL), P("nothing", CELL), P("nothing", CELL)])
+for n, what in [(7, "secondary A start (+)"), (8, "secondary A end"), (12, "secondary B start (+)"), (11, "secondary B end")]:
+    rows.append([P(str(n), CELLB), P(what, CELL), P(role("T1", n), CELL), P(role("T2", n), CELL)])
+rows.append([P("9", CELLB), P("core + housing", CELL), P(shield_end("T1"), CELL), P(shield_end("T2"), CELL)])
+pin_tbl = Table(rows, colWidths=[11 * mm, 34 * mm, 34 * mm, 34 * mm])
 pin_tbl.setStyle(grid_style())
 side = Table([[pin_drawing(), pin_tbl]], colWidths=[62 * mm, 116 * mm])
 side.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP"), ("LEFTPADDING", (0, 0), (-1, -1), 0)]))
 story.append(side)
-story.append(P("<b>T2 is wired mirrored on purpose:</b> both its primary and its secondary are reversed. Reversing one side alone would "
-               "flip the right channel; reversing both cancels out, so L and R stay in phase. It is what lets the right-channel wires "
-               "reach the header without crossing. Bridges are the same on both: 3-6 and 8-12, never 3-4.", SM))
+if MIRRORED:
+    t = MIRRORED[0] if len(MIRRORED) == 1 else "T1 and T2"
+    story.append(P(f"<b>{t} {'is' if len(MIRRORED) == 1 else 'are'} wired mirrored on purpose:</b> both primary and secondary are reversed. "
+                   "Reversing one side alone would flip that channel; reversing both cancels out, so L and R stay in phase. "
+                   f"It is what lets the wires reach the headers without crossing. (In v2 it was T2; in v3 it is {t}.) "
+                   "Bridges are the same on both: 3-6 and 8-12, never 3-4.", SM))
 
 story.append(P("2. Header pin maps (measured 13 Sept)", H2))
-story.append(P("Both headers came out the same, viewed from the component side: top row GND, GND; middle row L+, L-; bottom row R+, R-. "
-               "Rows and columns below are perfboard holes: column 0 is the IN end, row 0 the top edge. IN header = columns 1-2, "
-               "OUT header = columns 45-46, both in rows 7-9.", B))
-hdr = Table([
-    [P("<b>IN (WMD)</b>", CELL), P("<b>col 1</b>", CELL), P("<b>col 2</b>", CELL), "", P("<b>OUT (tile)</b>", CELL), P("<b>col 45</b>", CELL), P("<b>col 46</b>", CELL)],
-    [P("row 7", CELL), P("GND, no wire", CELL), P("GND, no wire", CELL), "", P("row 7", CELL), P("GND (T1 shield)", CELL), P("GND, no wire", CELL)],
-    [P("row 8", CELL), P("L+", CELL), P("L-", CELL), "", P("row 8", CELL), P("L+", CELL), P("L-", CELL)],
-    [P("row 9", CELL), P("R+", CELL), P("R-", CELL), "", P("row 9", CELL), P("R+", CELL), P("R-", CELL)],
-], colWidths=[22 * mm, 31 * mm, 31 * mm, 6 * mm, 22 * mm, 31 * mm, 31 * mm])
+story.append(P("Both headers measured the same, viewed from the component side: top row GND, GND; middle row L+, L-; bottom row R+, R-. "
+               f"On this board the IN header is fitted with its {ROT(CFG['in_rot'])} and the OUT header with its {ROT(CFG['out_rot'])}, "
+               f"so the holes read as below. Column 0 is the IN end, row 0 the top edge. IN header = columns {CFG['in_col']}-{CFG['in_col'] + 1}, "
+               f"OUT header = columns {CFG['out_col']}-{CFG['out_col'] + 1}, both in rows {HR}-{HR + 2}.", B))
+def hcell(c, mp, side_in):
+    lab = mp[c].split("\n")[0]
+    if lab.startswith("GND"):
+        if side_in or c in GND_FREE: return "GND, no wire"
+        ends = [f"T{r[2][0] == pin('T2', 9) and 2 or 1}" for r in SH_W if r[2][-1] == c]
+        return "GND (both shields)" if len(ends) == 2 else f"GND ({ends[0]} shield)"
+    return lab
+hrows = [[P("<b>IN (WMD)</b>", CELL), P(f"<b>col {CFG['in_col']}</b>", CELL), P(f"<b>col {CFG['in_col'] + 1}</b>", CELL), "",
+          P("<b>OUT (tile)</b>", CELL), P(f"<b>col {CFG['out_col']}</b>", CELL), P(f"<b>col {CFG['out_col'] + 1}</b>", CELL)]]
+for r in (HR, HR + 1, HR + 2):
+    ic, oc = CFG["in_col"], CFG["out_col"]
+    hrows.append([P(f"row {r}", CELL), P(hcell((ic, r), RF["IN_MAP"], True), CELL), P(hcell((ic + 1, r), RF["IN_MAP"], True), CELL), "",
+                  P(f"row {r}", CELL), P(hcell((oc, r), RF["OUT_MAP"], False), CELL), P(hcell((oc + 1, r), RF["OUT_MAP"], False), CELL)])
+hdr = Table(hrows, colWidths=[22 * mm, 31 * mm, 31 * mm, 6 * mm, 22 * mm, 31 * mm, 31 * mm])
 hdr.setStyle(TableStyle([("FONT", (0, 0), (-1, -1), "Helvetica", 8.6), ("GRID", (0, 0), (2, -1), 0.4, colors.HexColor("#999")),
                          ("GRID", (4, 0), (6, -1), 0.4, colors.HexColor("#999")), ("BACKGROUND", (0, 0), (2, 0), colors.HexColor("#DCE7F5")),
                          ("BACKGROUND", (4, 0), (6, 0), colors.HexColor("#F8E3D8")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                          ("LEFTPADDING", (3, 0), (3, -1), 0), ("RIGHTPADDING", (3, 0), (3, -1), 0)]))
 story.append(hdr)
-story.append(P("<b>Orientation:</b> fit each header so its two GND pins are toward the top edge of the board (row 7) and its notch faces the same "
-               "way as the notch on the WMD or tile does when you hold that device with its GND pins up. Then a straight ribbon lands every "
-               "signal where the drawing expects it. Both ribbons pin 1 to pin 1, stripe on the same side at both ends; make them different lengths.", SM))
+def orient(label, rot, dev):
+    if rot:
+        return (f"fit the {label} header TURNED 180°: its two GND pins toward the bottom edge (row {HR + 2}), and its notch facing the same way "
+                f"as the notch on the {dev} does when you hold the {dev} with its GND pins DOWN")
+    return (f"fit the {label} header with its two GND pins toward the top edge (row {HR}), and its notch facing the same way as the notch "
+            f"on the {dev} does when you hold the {dev} with its GND pins up")
+story.append(P(f"<b>Orientation:</b> {orient('IN', CFG['in_rot'], 'WMD')}. Then {orient('OUT', CFG['out_rot'], 'tile')}. "
+               + ("The OUT header is turned round compared with v2 and with the IN header; the ribbon plug turns with it, so every signal "
+                  "still lands where the drawing expects it. Step B4 checks this with the meter before any wiring. " if CFG["out_rot"] or CFG["in_rot"] else "")
+               + "Both ribbons pin 1 to pin 1, stripe on the same side at both ends; make them different lengths.", SM))
 story.append(P("3. Sharpie key for the underside", H2))
+runs = lambda ws: ", ".join(f"{r[0].split(' :')[0]} {longest(r[2])}" for r in ws)
 key = Table([
-    [P("<font color='#1F6FB2'><b>BLUE</b></font>", CELL), P("WMD side: L+, L-, R+, R-. Bottom lanes: row 15 = R+, row 14 = R-.", CELL)],
-    [P("<font color='#D9541E'><b>ORANGE / RED</b></font>", CELL), P("Tile side: L+, L-, R+, R-. Top lanes rows 0 and 2 for the long L runs.", CELL)],
-    [P("<font color='#2E8B57'><b>GREEN</b></font>", CELL), P("Shields: pin 9 of each transformer to an OUT-side GND pin. Top lane row 1.", CELL)],
-    [P("<font color='#7A7A7A'><b>GREY / BLACK</b></font>", CELL), P("Bridges 3-6 and 8-12, inside each footprint on columns 7, 19, 26, 40. Dashed green = the one insulated jumper.", CELL)],
+    [P("<font color='#1F6FB2'><b>BLUE</b></font>", CELL), P(f"WMD side: L+, L-, R+, R-. Long runs: {runs(IN_W)}.", CELL)],
+    [P("<font color='#D9541E'><b>ORANGE / RED</b></font>", CELL), P(f"Tile side: L+, L-, R+, R-. Long runs: {runs(OUT_W)}.", CELL)],
+    [P("<font color='#2E8B57'><b>GREEN</b></font>", CELL), P("Shields: pin 9 of each transformer to OUT GND "
+       + " and ".join(xy(c) for c in GND_USED) + ". Longest runs: " + ", ".join(f"T{1 if r[2][0] == pin('T1', 9) else 2} {longest(r[2])}" for r in SH_W) + ".", CELL)],
+    [P("<font color='#7A7A7A'><b>GREY / BLACK</b></font>", CELL), P(f"Bridges 3-6 and 8-12: {BRIDGES}. No jumpers anywhere.", CELL)],
 ], colWidths=[34 * mm, 140 * mm])
 key.setStyle(grid_style(header=False))
 story.append(key)
@@ -141,7 +208,8 @@ story.append(NextPageTemplate("land"))
 story.append(PageBreak())
 story.append(P("Routing, TOP view (component side). Column 0 is the IN end, row 0 is the top edge.", H2))
 story.append(Image("outputs/iso-board-routing.png", width=LW - 24 * mm, height=(LW - 24 * mm) * 0.4))
-story.append(P("v2 for the measured headers. Bodies on top, every wire underneath. Machine-checked: no two wires share a hole; the only crossing is the dashed insulated jumper near the OUT header.", SM))
+story.append(P("v3 for the measured headers. Bodies on top, every wire underneath. Machine-checked (solver/check_routes.py): no wire crosses another "
+               "and no two wires share a hole, except the two shield wires that end on the same GND pin.", SM))
 story.append(PageBreak())
 story.append(P("Routing, UNDERSIDE view (mirrored). This is what you see with the board flipped, wires facing you.", H2))
 story.append(Image("outputs/iso-board-routing-underside.png", width=LW - 24 * mm, height=(LW - 24 * mm) * 0.4))
@@ -151,37 +219,44 @@ story.append(P("Use this page at the iron. The IN end is now on the RIGHT. Lay s
 story.append(NextPageTemplate("portrait"))
 story.append(PageBreak())
 story.append(P("4. Build order", H1))
+story.append(P("The directions give hole coordinates (col,row). Up and down mean toward row 0 and row 16; they are the same on both drawings.", SM))
 story.append(P("A. Prepare", H2))
 for t in [
-    "Cut the board to 48 x 17 holes (122 x 43 mm). Score both faces along a hole row with a knife against a rule, snap over a table edge, tidy with P120 on the block. Backup: junior hacksaw (32 TPI). Wipe the glass dust off.",
-    "Mark the two transformer footprints on TOP: primary column at col 6 (T1) and col 27 (T2), secondary column 14 holes on, at col 20 and col 41. Pins at rows 3, 5, 7, 9, 11, 13 (primary) and 3, 5, 9, 11, 13 (secondary). Check a transformer physically against the marks before drilling.",
+    f"Cut the board to {COLS} x 17 holes ({COLS * 2.54:.0f} x 43 mm). Score both faces along a hole row with a knife against a rule, snap over a table edge, tidy with P120 on the block. Backup: junior hacksaw (32 TPI). Wipe the glass dust off.",
+    f"Mark the two transformer footprints on TOP: primary column at col {CFG['t1']} (T1) and col {CFG['t2']} (T2), secondary column 14 holes on, at col {CFG['t1'] + 14} and col {CFG['t2'] + 14}. Pins at rows 3, 5, 7, 9, 11, 13 (primary) and 3, 5, 9, 11, 13 (secondary). Check a transformer physically against the marks before drilling.",
     "Drill the 22 footprint holes to 1.5 mm with the HOTO at 600 rpm, light pressure. The existing hole centres the bit. All other holes stay 1.0 mm.",
     "Sharpie the routing on the UNDERSIDE using page 3 and the colour key.",
 ]: story.append(ck(t))
 story.append(P("B. Headers and ribbons", H2))
 for t in [
-    "Fit both 2x3 box headers from the top: IN at cols 1-2 rows 7-9, OUT at cols 45-46 rows 7-9, notch orientation matching the WMD's and the tile's own headers. Tack one pin, check it sits flat, solder the rest.",
+    f"Fit both 2x3 box headers from the top: IN at cols {CFG['in_col']}-{CFG['in_col'] + 1} rows {HR}-{HR + 2}, OUT at cols {CFG['out_col']}-{CFG['out_col'] + 1} rows {HR}-{HR + 2}, "
+    f"oriented as in section 2 ({'OUT header turned 180°, GND pins toward the bottom' if CFG['out_rot'] else 'GND pins toward the top'}). Tack one pin, check it sits flat, solder the rest.",
     "Peel 6 conductors off the 10-way ribbon. Cut square. Crimp a PFL 6 on each end in the vice: stripe over pin 1, cap pressed home parallel with scrap card either side, strain relief folded over. Two short ribbons (different lengths) plus one longer bypass ribbon.",
     "Test each ribbon: all six conductors continuous end to end; no continuity between neighbouring pins.",
+    "Orientation check, before any wiring: plug the tile's ribbon into the OUT header. Meter from a tile jack sleeve to the OUT header holes: expect 0 ohm at "
+    + " and ".join(xy(c) for c, lab in sorted(RF["OUT_MAP"].items()) if lab.startswith("GND")) + ". If the 0 ohm readings are at "
+    + " and ".join(xy(c) for c in sorted((c[0], 2 * HR + 2 - c[1]) for c, lab in RF["OUT_MAP"].items() if lab.startswith("GND")))
+    + " instead, the header is the wrong way round: stop and refit it.",
 ]: story.append(ck(t))
 story.append(P("C. Transformers and wiring", H2))
+def wire_name(r):
+    lab = r[0]
+    if lab.startswith("shield"): return f"T{1 if r[2][0] == pin('T1', 9) else 2} shield"
+    return ("IN " if ": IN" in lab else "OUT ") + lab.split(" :")[0]
+mirror_note = " ".join(f"{t} is mirrored: IN {CH[t]}+ goes to pin 4 and IN {CH[t]}- to pin 1; OUT {CH[t]}+ comes from pin 11 and OUT {CH[t]}- from pin 7." for t in MIRRORED)
 for t in [
     "Seat T1 and T2 from the top with the primary pins toward the IN end. Every pin drops in without force. Solder all 11 pins on each; short passes.",
-    "Bridges first (grey): T1 3-6 on col 7, T1 8-12 on col 19, T2 3-6 on col 26, T2 8-12 on col 40.",
-    "IN wires (blue): L+ (1,8) out to col 0, down to row 14, along to col 5, up into T1 pin 1. L- (2,8) along row 8 to col 4, up to row 7, into T1 pin 4. "
-    "R+ (1,9) down col 1 to row 12, along to col 7, down to row 15, along row 15 to col 28, up col 28 to row 7, into T2 pin 4 (mirrored). "
-    "R- (2,9) down to row 10, along to col 8, down to row 14, along row 14 to col 27, up into T2 pin 1 (mirrored).",
-    "OUT wires (orange): T1 pin 11 (L-) out to col 21, up to row 0, along to col 47, down to row 8, into OUT L- (46,8). "
-    "T1 pin 7 (L+) along row 13 to col 23, up to row 2, along to col 44, down to row 8, into OUT L+ (45,8). "
-    "T2 pin 11 (R+, mirrored) up to row 4, along to col 43, down to row 9, into OUT R+ (45,9). "
-    "T2 pin 7 (R-, mirrored) along row 13 to col 46, up into OUT R- (46,9).",
-    "T1 shield (green): pin 9 out to col 22, up to row 1, along to col 45, down to GND (45,7).",
-    "T2 shield (green): pin 9 to (41,8), across to (42,8), up to (42,6). Then the ONE insulated jumper: a scrap of insulated hookup wire (or bare wire "
-    "with a sleeve of 1 mm heat-shrink) soldered at (42,6) and at (45,6), lying over the bare wires at (43,6) and (44,6) without touching them. "
-    "(45,6) already has T1's shield wire on it, so both housings end on the same GND pin.",
-    "No wire on: IN GND pins (1,7) and (2,7); OUT GND (46,7); pins 2 and 5 of each transformer.",
+    f"Bridges first (grey): {BRIDGES}.",
+    *([f"<b>{mirror_note}</b>"] if mirror_note else []),
+    *[f"<font color='#1F6FB2'><b>{wire_name(r)}</b></font> (blue) from " + describe(r[2]) for r in IN_W],
+    *[f"<font color='#D9541E'><b>{wire_name(r)}</b></font> (orange) from " + describe(r[2]) for r in OUT_W],
+    *[f"<font color='#2E8B57'><b>{wire_name(r)}</b></font> (green) from " + describe(r[2]) for r in SH_W],
+    *([f"Both shield wires end on {xy(GND_USED[0])}: solder them together on that pin."] if len(GND_USED) == 1 and len(SH_W) == 2 else []),
+    f"No wire on: IN GND pins " + " and ".join(xy(c) for c, lab in sorted(RF["IN_MAP"].items()) if lab.startswith("GND"))
+    + ("; OUT GND " + " and ".join(xy(c) for c in GND_FREE) if GND_FREE else "") + "; pins 2 and 5 of each transformer.",
 ]: story.append(ck(t))
 story.append(P("D. Bench tests, before it goes anywhere near the case", H2))
+sig_out = ", ".join(xy(c) for c, lab in sorted(RF["OUT_MAP"].items()) if not lab.startswith("GND"))
 tests = Table([
     [P("<b>Meter between</b>", CELL), P("<b>Expect</b>", CELL), P("<b>Means</b>", CELL)],
     [P("T pin 1 and pin 4 (each transformer)", CELL), P("about 18 ohm", CELL), P("primaries in series, bridge good", CELL)],
@@ -190,10 +265,10 @@ tests = Table([
     [P("T pin 9 and pin 1; pin 9 and pin 7", CELL), P("OPEN", CELL), P("housing touches no coil", CELL)],
     [P("IN header GND and OUT header GND", CELL), P("OPEN", CELL), P("the isolation itself", CELL)],
     [P("every IN signal pin and every OUT pin", CELL), P("OPEN", CELL), P("no stray bridge across domains", CELL)],
-    [P("IN L+ and IN L-; IN R+ and IN R-", CELL), P("about 18 ohm", CELL), P("header to primary correct (T2 mirrored)", CELL)],
+    [P("IN L+ and IN L-; IN R+ and IN R-", CELL), P("about 18 ohm", CELL), P("header to primary correct" + (f" ({', '.join(MIRRORED)} mirrored)" if MIRRORED else ""), CELL)],
     [P("OUT L+ and OUT L-; OUT R+ and OUT R-", CELL), P("about 19 ohm", CELL), P("secondary to header correct", CELL)],
-    [P("OUT GND (45,7) and T1 pin 9; and T2 pin 9", CELL), P("0 ohm", CELL), P("both shields landed, jumper good", CELL)],
-    [P("T2 pin 9 and OUT L+ (45,8); and OUT R+ (45,9)", CELL), P("OPEN", CELL), P("jumper insulation intact over the crossings", CELL)],
+    [P(f"OUT GND {' / '.join(xy(c) for c in GND_USED)} and T1 pin 9; and T2 pin 9", CELL), P("0 ohm", CELL), P("both shields landed", CELL)],
+    [P(f"OUT GND and each OUT signal hole {sig_out}", CELL), P("OPEN", CELL), P("no shield wire touching a signal wire", CELL)],
 ], colWidths=[66 * mm, 28 * mm, 82 * mm])
 tests.setStyle(grid_style())
 story.append(tests)
