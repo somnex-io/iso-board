@@ -28,6 +28,14 @@ see, instead of asking him to read coordinates out of a Python file.
 4. If Steven edits a layout by hand, read it back, convert it to the `routes_v2.py` format and run
    it through `solver/check_routes.py` before treating it as valid.
 
+## Saving the board to the repo
+
+Calling the MCP `export_board` tool saves the open board to `perfboarder/<board name>.json`
+through a PostToolUse hook (`.claude/settings.json`, `.claude/hooks/save_perfboarder_export.py`).
+Commit that file to keep a history. Only the session holding the bridge (port 4870) can export.
+Perfboarder holes are 1-based: our `(col, row)` is Perfboarder `(col+1, row+1)`. Corners are
+junctions `@col,row`, so the export's wire pairs are the route's straight segments.
+
 ## Gotcha: Perfboarder's checks are looser than this build
 
 Perfboarder's built-in rule allows **up to three wires on a pad**. This build allows **no two

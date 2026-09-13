@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__perfboarder__export_board",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/save_perfboarder_export.py\"",
+            "timeout": 30,
+            "statusMessage": "Saving Perfboarder board to repo"
+          }
+        ]
+      }
+    ]
+  }
+}
