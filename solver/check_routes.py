@@ -46,7 +46,9 @@ def spec(in_rot, out_rot, m1, m2, t1=6, t2=27, trow=0, in_col=1, out_col=45, hro
     # body outline 18.5 x 13.4 holes centred on the pins: hole centres inside it
     bodies = {"T1": {(c, r) for c in range(t1 - 2, t1 + 17) for r in range(2 + trow, 15 + trow)},
               "T2": {(c, r) for c in range(t2 - 2, t2 + 17) for r in range(2 + trow, 15 + trow)}}
-    return nets, pads, [T1(9), T2(9)], oh["GND"], ih["GND"], bodies
+    windings = {"IN L": (T1(1), T1(3), T1(6), T1(4)), "IN R": (T2(1), T2(3), T2(6), T2(4)),
+                "OUT L": (T1(7), T1(8), T1(12), T1(11)), "OUT R": (T2(7), T2(8), T2(12), T2(11))}
+    return nets, pads, [T1(9), T2(9)], oh["GND"], ih["GND"], bodies, windings
 
 
 def holes(pts):
@@ -59,7 +61,7 @@ def holes(pts):
 
 
 def check(routes, cfg, cols=48, place=None):
-    nets, pads, sh_src, out_gnd, in_gnd, bodies = spec(*cfg, **(place or {}))
+    nets, pads, sh_src, out_gnd, in_gnd, bodies, windings = spec(*cfg, **(place or {}))
     errs, notes = [], []
     H = []
     for label, _c, pts, jumper in routes:
@@ -131,9 +133,25 @@ def check(routes, cfg, cols=48, place=None):
             unpaired += sum(1 for (c, r) in by.get(a, ()) if not {(c + 1, r), (c - 1, r), (c, r + 1), (c, r - 1)} & by.get(b, set()))
     under_in = sum(len(by.get(n, set()) & bodies[t]) for t, ch in (("T1", "R"), ("T2", "L")) for n in (f"IN {ch}+", f"IN {ch}-"))
     under_out = sum(len(by.get(n, set()) & bodies[t]) for t, ch in (("T1", "R"), ("T2", "L")) for n in (f"OUT {ch}+", f"OUT {ch}-"))
-    score = wires * 1 + bends * 2 + unpaired * 3 + under_in * 2 + under_out * 1
-    notes.append(f"score {score}: wire holes {wires}, bends {bends}, pair holes with no partner beside them {unpaired}, "
-                 f"other channel's IN pair under a body {under_in}, OUT pair {under_out}")
+    score = wires * 1 + bends * 2 + unpaired * 3 + under_in * 2 + under_out * 1 + touch * 2  # + 2 x loop area, below
+    # loop area of each balanced pair, in square hole pitches: hot wire, then straight down the pin
+    # column through winding A, the series bridge and winding B, cold wire, back across the header.
+    # An estimate of the on-board loop that picks up stray flux. The bridge is counted as straight so
+    # a snaking bridge cannot cancel area.
+    path_of = {k: h for k, h in zip(kind, H) if k != "SH?"}
+    areas = {}
+    for pair, (a0, a1, b0, b1) in windings.items():
+        side, ch = pair.split()
+        hot = next(path_of[n] for n in (f"{pair}+", f"{pair}-") if a0 in (path_of[n][0], path_of[n][-1]))
+        cold = next(path_of[n] for n in (f"{pair}+", f"{pair}-") if b1 in (path_of[n][0], path_of[n][-1]))
+        hot = hot if hot[-1] == a0 else hot[::-1]           # header -> a0
+        cold = cold if cold[0] == b1 else cold[::-1]        # b1 -> header
+        poly = hot + [a1, b0] + cold
+        areas[pair] = abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]))) / 2
+    score += round(2 * sum(areas.values()))
+    notes.append("loop area (hole pitch^2): " + ", ".join(f"{k} {v:g}" for k, v in areas.items()) + f", total {sum(areas.values()):g}")
+    notes.append(f"score {score} (includes 2 x loop area): wire holes {wires}, bends {bends}, pair holes with no partner beside them {unpaired}, "
+                 f"other channel's IN pair under a body {under_in}, OUT pair {under_out}, IN/OUT neighbouring holes {touch}")
     return errs, notes
 
 

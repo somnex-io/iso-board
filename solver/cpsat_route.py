@@ -84,7 +84,9 @@ def geometry(in_rot, out_rot, m1, m2, place=None):
 
 PAIRS = [("IN L+", "IN L-"), ("IN R+", "IN R-"), ("OUT L+", "OUT L-"), ("OUT R+", "OUT R-")]
 # soft preference weights, shared with check_routes.score (kept in sync by hand)
-W_CELL, W_BEND, W_UNPAIRED, W_UNDER_IN, W_UNDER_OUT = 1, 2, 3, 2, 1
+W_CELL, W_BEND, W_UNPAIRED, W_UNDER_IN, W_UNDER_OUT, W_DOMAIN = 1, 2, 3, 2, 1, 2
+W_LOOP2 = 1   # per unit of doubled loop area, i.e. 2 per square hole pitch
+IN_SIDE = ("IN L+", "IN L-", "IN R+", "IN R-", "T1 3-6", "T2 3-6")   # everything else is tile side
 
 
 def build(g, relax=(), fixed=None, hint=None, objective=False):
@@ -126,20 +128,13 @@ def build(g, relax=(), fixed=None, hint=None, objective=False):
         for k in ("SH1", "SH2"):
             if (k, c) in x: m.Add(sum(base) + x[k, c] <= cap)
         if len(base) > 1: m.Add(sum(base) <= cap)
-    for src, is_fix in ((fixed, True), (hint, False)):
-        if not src: continue
-        want = {(n, a, b) for n, p in src.items() for a, b in zip(p, p[1:])}
-        missing = [k for k in want if k not in arc]
-        if missing: return None, f"route uses arcs the model forbids: {sorted(missing)[:4]}"
-        for k, v in arc.items():
-            if is_fix: m.Add(v == int(k in want))
-            else: m.AddHint(v, int(k in want))
+    aux = []
     if objective:
         obj = []
         u = {}
         for c in cells:
             if ("SH1", c) in x:
-                u[c] = m.NewBoolVar(""); m.AddImplication(x["SH1", c], u[c]); m.AddImplication(x["SH2", c], u[c])
+                u[c] = m.NewBoolVar(""); aux.append((u[c], 1)); m.AddImplication(x["SH1", c], u[c]); m.AddImplication(x["SH2", c], u[c])
         obj += [W_CELL * x[n, c] for n in p2p for c in cells if (n, c) in x] + [W_CELL * v for v in u.values()]
         for n in p2p + ["SH1", "SH2"]:
             for c in cells:
@@ -149,7 +144,7 @@ def build(g, relax=(), fixed=None, hint=None, objective=False):
                 hout = [arc[k] for k in ((n, c, d) for d in nb[c] if d[1] == c[1]) if k in arc]
                 vout = [arc[k] for k in ((n, c, d) for d in nb[c] if d[0] == c[0]) if k in arc]
                 if (hin and vout) or (vin and hout):
-                    b = m.NewBoolVar("")
+                    b = m.NewBoolVar(""); aux.append((b, 1))
                     if hin and vout: m.Add(b >= sum(hin) + sum(vout) - 1)
                     if vin and hout: m.Add(b >= sum(vin) + sum(hout) - 1)
                     obj.append(W_BEND * b)
@@ -158,9 +153,9 @@ def build(g, relax=(), fixed=None, hint=None, objective=False):
                 for c in cells:
                     if (a, c) not in x: continue
                     near = [x[bnet, d] for d in nb[c] if (bnet, d) in x]
-                    lone = m.NewBoolVar("")          # a's hole with no b hole beside it
+                    lone = m.NewBoolVar(""); aux.append((lone, 1))   # a's hole with no b hole beside it
                     if near:
-                        adj = m.NewBoolVar(""); m.Add(adj <= sum(near)); m.Add(lone >= x[a, c] - adj)
+                        adj = m.NewBoolVar(""); aux.append((adj, 0)); m.Add(adj <= sum(near)); m.Add(lone >= x[a, c] - adj)
                     else:
                         m.Add(lone >= x[a, c])
                     obj.append(W_UNPAIRED * lone)
@@ -171,7 +166,50 @@ def build(g, relax=(), fixed=None, hint=None, objective=False):
                 if n.endswith(("3-6", "8-12")) or n.split()[1][0] != ch: continue
                 w = W_UNDER_IN if n.startswith("IN") else W_UNDER_OUT
                 obj += [w * x[n, c] for c in body if (n, c) in x]
+        # spec rule 4: IN-side and tile-side wires in neighbouring holes (a solder slip bridges the isolation)
+        out_side = [n for n in p2p if n not in IN_SIDE]
+        for c in cells:
+            xin = [x[n, c] for n in IN_SIDE if (n, c) in x]
+            if not xin: continue
+            for d in nb[c]:
+                xout = [x[n, d] for n in out_side if (n, d) in x] + ([u[d]] if d in u else [])
+                if not xout: continue
+                t = m.NewBoolVar(""); aux.append((t, 1)); m.Add(t >= sum(xin) + sum(xout) - 1); obj.append(W_DOMAIN * t)
+        # Loop area of each balanced pair (Steven: the bigger lever). Polygon: header -> wire -> first
+        # winding pin, then straight down the pin column (windings and series bridge), wire back to the
+        # header, straight across the header. Twice the signed area is the sum of cross products over
+        # its edges, which is linear in the arc variables. The bridge is taken as straight on purpose:
+        # counting its real path let the optimiser snake the bridge around to cancel signed area.
+        T = g["T"]; tr = g["cfg"]["trow"]
+        def tp(t, pn): return (T[t][0], PRIM[pn] + tr) if pn in PRIM else (T[t][1], SEC[pn] + tr)
+        cross = lambda a, b: a[0] * b[1] - b[0] * a[1]
+        for t, side, (w0, w1, w2, w3), bridge in (("T1", "IN", (1, 3, 6, 4), "T1 3-6"), ("T2", "IN", (1, 3, 6, 4), "T2 3-6"),
+                                                   ("T1", "OUT", (7, 8, 12, 11), "T1 8-12"), ("T2", "OUT", (7, 8, 12, 11), "T2 8-12")):
+            a0, a1, b0, b1 = (tp(t, k) for k in (w0, w1, w2, w3))
+            pair = [n for n in p2p if n.startswith(side + " ") and g["nets"][n][0 if side == "OUT" else 1] in (a0, b1)]
+            hot = next(n for n in pair if a0 in g["nets"][n]); cold = next(n for n in pair if b1 in g["nets"][n])
+            hdr_hot = next(c for c in g["nets"][hot] if c != a0); hdr_cold = next(c for c in g["nets"][cold] if c != b1)
+            terms, const = [], cross(a0, a1) + cross(b0, b1) + cross(hdr_cold, hdr_hot)
+            const += cross(a1, b0)
+            for n, sign in ((hot, 1 if g["nets"][hot][0] == hdr_hot else -1), (cold, 1 if g["nets"][cold][0] == b1 else -1)):
+                terms += [sign * cross(a, b) * v for (nn, a, b), v in arc.items() if nn == n]
+            area2 = m.NewIntVar(0, 20000, f"loop2[{hot}]"); aux.append((area2, 20000))
+            m.Add(area2 >= sum(terms) + const); m.Add(area2 >= -(sum(terms) + const))
+            obj.append(W_LOOP2 * area2)
         m.Minimize(sum(obj))
+    for src, is_fix in ((fixed, True), (hint, False)):
+        if not src: continue
+        want = {(n, a, b) for n, p in src.items() for a, b in zip(p, p[1:])}
+        missing = [k for k in want if k not in arc]
+        if missing: return None, f"route uses arcs the model forbids: {sorted(missing)[:4]}"
+        for k, v in arc.items():
+            if is_fix: m.Add(v == int(k in want))
+            else: m.AddHint(v, int(k in want))
+        if not is_fix:                                # hint everything, or CP-SAT may never rebuild the solution
+            on = {(n, c) for n, p in src.items() for c in p}
+            for k, v in x.items():
+                if v is not one: m.AddHint(v, int(k in on))
+            for v, val in aux: m.AddHint(v, val)
     return m, (x, arc, ends)
 
 
@@ -264,7 +302,20 @@ def write_routes(g, paths, path, note=""):
         fh.write("]\n")
 
 
-def solve(g, seconds, workers=MAX_WORKERS, mem_mb=DEFAULT_MEM_MB, relax=(), fixed=None, hint=None, objective=False, log=False):
+class Saver(cp_model.CpSolverSolutionCallback):
+    """Print progress and write the best routing to disk every `every` seconds (crash-safe)."""
+    def __init__(self, g, vars_, path, every=15):
+        super().__init__(); self.g, self.vars_, self.path, self.every = g, vars_, path, every
+        self.last, self.best = -1e9, None
+    def on_solution_callback(self):
+        t, obj = self.WallTime(), self.ObjectiveValue()
+        if t - self.last >= self.every:
+            self.last = t
+            if self.path: write_routes(self.g, extract(self.g, self, self.vars_), self.path, f"cpsat checkpoint obj {obj:g} at {t:.0f}s")
+            print(f"  {t:6.0f}s  obj {obj:g}  bound {self.BestObjectiveBound():g}", flush=True)
+
+
+def solve(g, seconds, workers=MAX_WORKERS, mem_mb=DEFAULT_MEM_MB, relax=(), fixed=None, hint=None, objective=False, log=False, save=None):
     t0 = time.time()
     m, vars_ = build(g, relax, fixed, hint, objective)
     if m is None: return dict(status="REJECTED", why=vars_, build_s=time.time() - t0)
@@ -273,7 +324,7 @@ def solve(g, seconds, workers=MAX_WORKERS, mem_mb=DEFAULT_MEM_MB, relax=(), fixe
     s.parameters.num_workers = min(workers, MAX_WORKERS)
     s.parameters.max_memory_in_mb = mem_mb
     s.parameters.log_search_progress = log
-    st = s.Solve(m)
+    st = s.Solve(m, Saver(g, vars_, save) if objective else None)
     res = dict(status=s.StatusName(st), build_s=round(time.time() - t0 - s.WallTime(), 1), solve_s=round(s.WallTime(), 1),
                limit_s=seconds, workers=s.parameters.num_workers, mem_mb=mem_mb, info=s.SolutionInfo())
     if objective and st in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -307,7 +358,7 @@ def main():
     g = geometry(a.in_rot, a.out_rot, a.m1, a.m2, parse_place(a.place))
     relax = {tuple(map(int, p.split(","))) for p in a.relax.split(";") if p}
     res = solve(g, a.seconds, a.workers, a.mem_mb, relax,
-                load_routes(a.fix, g) if a.fix else None, load_routes(a.hint, g) if a.hint else None, a.opt, a.log)
+                load_routes(a.fix, g) if a.fix else None, load_routes(a.hint, g) if a.hint else None, a.opt, a.log, a.routes_out)
     head = {k: v for k, v in res.items() if k != "paths"}
     print(f"{a.tag} cfg {g['cfg']} relax {len(relax)} fix {a.fix} hint {a.hint} -> {head}", flush=True)
     if "paths" in res:
