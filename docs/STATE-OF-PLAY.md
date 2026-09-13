@@ -9,18 +9,28 @@
 
 ## Current recommended build: `solver/routes_v3.py` (NO jumpers), 13 Sept
 
-- Planned 48 x 17 board, every component at its default position. Nothing moved, no extra columns.
-- IN header rot 0 (as v2). **OUT header rotated 180°** (GND row at the bottom, row 9).
+- Planned **50 x 19** board (127 x 48 mm), every component at its default position.
+- **Board change, 13 Sept (Steven):** the layout found on 48 x 17 moved +1 column and +1 row, so the
+  outer ring of holes is an empty border. On 48 x 17, OUT L ran along row 0 and the T1 shield along
+  row 16: a rough cut or a lifted edge pad would have broken a live net. The board lies flat on the
+  case, so the extra rows cost nothing in the tight axis. Same topology, wire shapes and scores; no
+  re-route. Checked: every point is the old point +1/+1; `check_routes.py` and `analyse_pairs.py`
+  give line-for-line the same output once old coordinates are shifted (loop areas 19 / 30 / 112 / 39,
+  total 200; score 1214; 0 wire holes on the ring); `final_routes.py solver/routes_v3.py` is clean.
+  Coordinates in this section are on 50 x 19. The v2 section, the solver notes and
+  everything in `solver/results/` use 48 x 17 coordinates (subtract 1 from col and row).
+- IN header rot 0 (as v2). **OUT header rotated 180°** (GND row at the bottom, row 10).
 - **T1 MIRRORED** (hot 4 / cold 1, out hot 11 / cold 7). T2 normal. (v2 had T2 mirrored.)
-- Bridges: T1 3-6 col 7, T1 8-12 col 18, T2 3-6 col 26, T2 8-12 col 39.
-- Both shield wires end on OUT GND (45,9); (46,9) stays empty.
+- Bridges: T1 3-6 col 8, T1 8-12 col 19, T2 3-6 col 27, T2 8-12 col 40.
+- Both shield wires end on OUT GND (46,10); (47,10) stays empty.
 - Drawings and bench sheet: `outputs/current/`. The v2 set is kept in `outputs/v2-1-jumper/`.
 - Bench sheet step B4 checks the rotated OUT header with the meter before any wiring.
 
 Checked four independent ways: `solver/check_routes.py` (terminals rebuilt from the spec, no
 shared code with the solver), the checks in `solver/final_routes.py`, CP-SAT with the route fixed
-and nothing relaxed (OPTIMAL), and a plain count of holes (the only hole used twice is (45,9),
-the two shield wires on the same GND pin).
+and nothing relaxed (OPTIMAL), and a plain count of holes (the only hole used twice is (45,9) on
+48 x 17, now (46,10): the two shield wires on the same GND pin). The CP-SAT check was on 48 x 17; the
+solver scripts still model a 17-row board and were not re-run for the shift.
 
 ### Why this layout (reversible)
 
@@ -50,19 +60,20 @@ OUT R 39. The OUT L loop wraps R's whole output circuit (all of OUT R+ and R-, a
 8-12 bridge), and OUT L- runs 25 mm beside OUT R+ at 2.54 mm.
 
 **The split itself is structural and no jumper removes it.** With the OUT header rotated, L- at
-(45,8) and L+ at (46,8) each have exactly one free orthogonal neighbour, (44,8) and (47,8); up, down
+(46,9) and L+ at (47,9) each have exactly one free orthogonal neighbour, (45,9) and (48,9); up, down
 and inward are all pin holes. No wire may pass through a pin hole, and a jumper only crosses over
 wires, so one leg always has to go round the header block. A jumper can only change how big that
 wrap is.
 
 **Partial numbers, not proven minima** (`solver/jumper_probe.py`: reroutes only OUT L, T1-end portion
-and every other wire kept as v3; best found in 150 s per run; results in `solver/results/jumper_probe/`):
+and every other wire kept as v3; best found in 150 s per run; results in `solver/results/jumper_probe/`,
+in 48 x 17 coordinates; the table below is shifted to 50 x 19):
 
 | OUT L rerouted, rest of v3 fixed | OUT L area | total area | R holes inside OUT L loop | longest L-beside-R run at 2.54 mm |
 |---|---|---|---|---|
 | v3 as built | 112 | 200 | 48 | 25 mm |
 | no jumper | 99 | 187 | 48 | 25 mm |
-| one jumper: 3 pitches on OUT L-, (44,3) to (44,6), over OUT R+ (44,4) and OUT R- (44,5) | 46 | 134 | 8 | 10 mm |
+| one jumper: 3 pitches on OUT L-, (45,4) to (45,7), over OUT R+ (45,5) and OUT R- (45,6) | 46 | 134 | 8 | 10 mm |
 
 Crosstalk estimates (loop shapes from the route data, windings approximated as the pin column):
 mutual inductance OUT L to OUT R loop 16.8 nH (v3) against 0.8 nH (one jumper). Magnetic, +18 dBu at
@@ -74,9 +85,9 @@ channel crosstalk (about -80 to -90 dB).
 vertical space, so unless it's a large difference, which it sounds like it's immaterial anyway, we
 should not add a jumper"). An insulated jumper stands proud of the board and the enclosure is
 height-constrained. Only reopen if that changes; start from
-`solver/results/jumper_probe/v3_outL_jumpers1_span3.py`.
+`solver/results/jumper_probe/v3_outL_jumpers1_span3.py` (48 x 17: shift +1/+1 before comparing with v3).
 
-## Previous build: `solver/routes_v2.py` (1 jumper)
+## Previous build: `solver/routes_v2.py` (1 jumper, 48 x 17 coordinates)
 - T1 normal (hot 1 / cold 4, out 7 / 11). T2 MIRRORED (hot 4 / cold 1, out 11 / 7).
 - Both headers rot 0 (GND row toward row 0).
 - Bridges: T1 3-6 on col 7, T1 8-12 on col 19, T2 3-6 on col 26, T2 8-12 on col 40.

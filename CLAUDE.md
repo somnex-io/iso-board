@@ -10,16 +10,18 @@ Steven also has the layout open in Perfboarder, with an MCP bridge for this repo
 Find a **crossing-free** wiring layout for a perfboard, or prove that none exists within the
 allowed freedoms and say so plainly.
 
-- Board: planned 48 x 17 holes on a 2.54 mm grid (122 x 43 mm), not cut yet (see freedom 6).
+- Board: planned 50 x 19 holes on a 2.54 mm grid (127 x 48 mm), not cut yet (see freedom 6). The
+  outer ring of holes stays empty as a sacrificial border (13 Sept: the 48 x 17 layout moved +1 col,
+  +1 row; the solver scripts, `routes_v2.py` and `solver/results/` still use 48 x 17 coordinates).
   Coordinates are `(col, row)`,
   col 0 = IN end, row 0 = top edge. Every wire is bare silver wire on the underside, laid
   hole to hole in orthogonal runs. **Two bare wires may never share a hole** (that is a short),
   and no wire may pass through a hole that has a component pin in it, other than its own two
   endpoints.
 - Components: two Lundahl LL1517 transformers (footprints in the spec), a 2x3 IN header and a
-  2x3 OUT header. Default positions: T1 pin columns 6/20, T2 27/41, IN header cols 1-2 rows 7-9,
-  OUT header cols 45-46 rows 7-9. Positions may change (freedom 8). Header pin maps are
-  MEASURED and fixed (see spec).
+  2x3 OUT header. Default positions: T1 pin columns 7/21, T2 28/42 (pin rows 4 to 14), IN header
+  cols 2-3 rows 8-10, OUT header cols 46-47 rows 8-10. Positions may change (freedom 8). Header
+  pin maps are MEASURED and fixed (see spec).
 - Nets to route (12 point-to-point nets plus one shield tree): see `docs/DESIGN-SPEC.md` §4.
 
 The current best answer (`solver/routes_v2.py`) needs **one insulated jumper** (3 holes,
@@ -29,8 +31,9 @@ solder joint.
 
 ## Allowed freedoms (use any of them)
 
-1. **Header rotation**: either header may be mounted rotated 180° (GND row toward row 16
-   instead of row 0). The ribbon plugs either way; only the pin positions on this board change.
+1. **Header rotation**: either header may be mounted rotated 180° (GND row toward the
+   bottom edge instead of the top). The ribbon plugs either way; only the pin positions on this
+   board change.
 2. **Transformer mirroring**: on either transformer you may swap hot/cold on BOTH windings
    together (hot -> pin 4, cold -> pin 1; out hot <- pin 11, out cold <- pin 7). Polarity is
    preserved because both windings reverse. You may NOT reverse only one winding.
@@ -41,8 +44,9 @@ solder joint.
    wire; they are joined on the tile.
 5. **Which GND pin the WMD side leaves unconnected**: both IN GND pins stay empty always.
 6. **Board size**: the board may grow if that is what it takes; say so clearly. Prefer more
-   columns with the same 17 rows (long and thin beats short and fat). Extra rows are a last
-   resort; if a solution needs them, call it out loudly. 48 x 17 is the planned cut.
+   columns with the same 19 rows (long and thin beats short and fat). Extra rows are a last
+   resort; if a solution needs them, call it out loudly. 50 x 19 is the planned cut (48 x 17 plus
+   the empty border ring, Steven's choice on 13 Sept).
 7. A wire may run under a transformer body (everything is on the underside).
 8. **Component placement**: the transformers and headers may be moved. Bodies must stay on the
    board and must not overlap each other or the headers. Headers stay at their own end of the
@@ -121,8 +125,9 @@ Run scripts from the repo root. The drawing scripts read `solver/routes_v3.py` b
 `--routes FILE` for another layout); the sheet text is generated from the routes file. Move the
 results into `outputs/current/` when they are the recommended build.
 
-**Status, 13 Sept:** outcome A reached. `solver/routes_v3.py` is a zero-jumper layout on the
-planned 48 x 17 board with no components moved; see `docs/STATE-OF-PLAY.md`.
+**Status, 13 Sept:** outcome A reached. `solver/routes_v3.py` is a zero-jumper layout, found on the
+48 x 17 board with no components moved, then shifted +1 col, +1 row onto the planned 50 x 19 board
+for an empty border ring; see `docs/STATE-OF-PLAY.md`.
 
 ## Style notes for the user-facing deliverables
 

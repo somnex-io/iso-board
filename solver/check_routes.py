@@ -13,7 +13,7 @@ Exit code 0 only if the layout is valid and has zero jumpers.
 import sys
 from itertools import combinations
 
-# DESIGN-SPEC section 3, literal tables
+# DESIGN-SPEC section 3 tables, pin rows as on the 48 x 17 board; CONFIG trow 1 gives the 50 x 19 rows
 PRIMARY = {6: 3, 5: 5, 4: 7, 3: 9, 2: 11, 1: 13}
 SECONDARY = {12: 3, 11: 5, 9: 9, 8: 11, 7: 13}
 HDR_ROT0 = {(0, 0): "GND", (1, 0): "GND", (0, 1): "L+", (1, 1): "L-", (0, 2): "R+", (1, 2): "R-"}
