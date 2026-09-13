@@ -17,7 +17,7 @@ P = 1.0  # one hole pitch = 1 unit
 
 exec(open(ROUTES).read())
 sys.path.insert(0, HERE)
-from palette import IN_C, OUT_C, SH_C, BR_C, IN_L, IN_R, OUT_L, OUT_R, RIGHT_DASH, wire_style   # overrides the routes file's colours
+from palette import IN_C, OUT_C, SH_C, BR_C, IN_L, IN_R, OUT_L, OUT_R, wire_colour   # overrides the routes file's colours
 # routes_v2.py has no CONFIG: it is IN/OUT rot 0, T2 mirrored, default positions
 CONFIG = dict(dict(in_rot=0, out_rot=0, m1=0, m2=1, cols=48, t1=6, t2=27, trow=0, in_col=1, out_col=45, hrow=7), **globals().get("CONFIG", {}))
 COLS = CONFIG["cols"]
@@ -82,13 +82,12 @@ header(OUT_HDR, OUT_MAP, "OUT 2x3 (to tile)\nMEASURED map" + ROT(CONFIG["out_rot
 # routes
 for label, _, pts, jumper in routes:
     xs = [X(p[0]) for p in pts]; ys = [p[1] for p in pts]
-    colour, right = wire_style(label)
-    if jumper:   # dotted, so it cannot be mistaken for a right-channel (dashed) wire
-        ax.plot(xs, ys, color=colour, lw=2.8, ls=(0, (0.6, 1.2)), dash_capstyle="round", zorder=6)
-        ax.text((xs[0] + xs[-1]) / 2, ys[0] - 0.9, "insulated jumper (dotted)", ha="center", va="center", fontsize=5.6, color=colour, fontweight="bold")
+    colour = wire_colour(label)
+    if jumper:
+        ax.plot(xs, ys, color=colour, lw=2.8, ls=(0, (2, 1.2)), solid_capstyle="round", zorder=6)
+        ax.text((xs[0] + xs[-1]) / 2, ys[0] - 0.9, "insulated jumper (dashed)", ha="center", va="center", fontsize=5.6, color=colour, fontweight="bold")
     else:
-        ax.plot(xs, ys, color=colour, lw=2.4, ls=RIGHT_DASH if right else "-", solid_capstyle="round", solid_joinstyle="round",
-                dash_capstyle="butt", dash_joinstyle="round", zorder=5)
+        ax.plot(xs, ys, color=colour, lw=2.4, solid_capstyle="round", solid_joinstyle="round", zorder=5)
 
 # wire labels: each signal and shield wire named once, on its longest straight run
 for label, _, pts, jumper in routes:
@@ -106,13 +105,12 @@ for label, _, pts, jumper in routes:
 
 # legend
 lx, ly = 0, -2.25
-for i, (col, ls, txt) in enumerate([(IN_L, "-", "IN left (WMD side)"), (IN_R, RIGHT_DASH, "IN right"),
-                                    (OUT_L, "-", "OUT left (tile side)"), (OUT_R, RIGHT_DASH, "OUT right"),
-                                    (SH_C, "-", "shield: pin 9 -> OUT ground"), (BR_C, "-", "bridges 3-6, 8-12" + ("; dotted = jumper" if JUMPERS else ""))]):
+for i, (col, txt) in enumerate([(IN_L, "IN left (WMD side)"), (IN_R, "IN right (WMD side)"),
+                                (OUT_L, "OUT left (tile side)"), (OUT_R, "OUT right (tile side)"),
+                                (SH_C, "shield: pin 9 -> OUT ground"), (BR_C, "bridges 3-6, 8-12" + ("; dashed = jumper" if JUMPERS else ""))]):
     x0 = lx + i * 8.05
-    ax.plot([x0, x0 + 1.6], [ly, ly], color=col, lw=2.4, ls=ls, dash_capstyle="butt")
+    ax.plot([x0, x0 + 1.6], [ly, ly], color=col, lw=2.4)
     ax.text(x0 + 2.0, ly, txt, va="center", fontsize=7, color="#333")
-ax.text(COLS - 0.5, -1.55, "left channel: dark, solid  |  right channel: lighter, dashed", ha="right", va="center", fontsize=6.4, color="#555")
 
 SUMMARY = ("One insulated jumper (dashed); everything else crossing-free." if len(JUMPERS) == 1 else
            "No jumpers: no wire crosses or shares a hole with another." if not JUMPERS else f"{len(JUMPERS)} insulated jumpers (dashed).")

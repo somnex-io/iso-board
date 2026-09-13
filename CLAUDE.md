@@ -130,9 +130,9 @@ The user has printed earlier bench sheets. Keep the coordinate system, line weig
 structure the same: exactly 4 pages (page 1 reference, page 2 top view, page 3 mirrored underside
 view, page 4 checklist). No em dashes in any text. Concise, plain language, no marketing tone.
 
-Colours changed on 13 Sept at Steven's request ("draw left and right as different colors"). On top
-of IN = blue, OUT = red/orange, shield = green, bridges = grey, the left channel is drawn darker
-and solid and the right channel lighter and dashed. The palette lives in `drawing/palette.py`,
-shared by the drawings and the bench sheet. It is printed and built from paper, so it must stay
-readable in greyscale (never colour alone: keep the dash) and for colour-blind readers (no
-red/green pairs); re-check separation and contrast against the board colour if you change it.
+Colours changed on 13 Sept at Steven's request ("draw left and right as different colors"): WMD
+side left = blue, right = purple; tile side left = red, right = orange; shield = green, bridges =
+grey. Steven prints in colour, so colour alone carries the channel: no dashes or other line-style
+differences. Keep it readable for colour-blind readers (no red/green left/right pair) and re-check
+separation and contrast against the board colour if you change it. The palette lives in
+`drawing/palette.py`, shared by the drawings and the bench sheet.

@@ -196,20 +196,19 @@ runs = lambda ws: ", ".join(f"{r[0].split(' :')[0]} {longest(r[2])}" for r in ws
 pick = lambda ws, ch: [r for r in ws if r[0][0] == ch]
 # key labels wear the wire colour, except grey: the bridge grey is too light for text
 key = Table([
-    [P(f"<font color='{PAL.IN_L}'><b>BLUE, solid</b></font>", CELL), P(f"WMD side, LEFT channel (IN L+, L-). Long runs: {runs(pick(IN_W, 'L'))}.", CELL)],
-    [P(f"<font color='{PAL.IN_R}'><b>BLUE, dashed</b></font>", CELL), P(f"WMD side, RIGHT channel (IN R+, R-). Long runs: {runs(pick(IN_W, 'R'))}.", CELL)],
-    [P(f"<font color='{PAL.OUT_L}'><b>RED / ORANGE, solid</b></font>", CELL), P(f"Tile side, LEFT channel (OUT L+, L-). Long runs: {runs(pick(OUT_W, 'L'))}.", CELL)],
-    [P(f"<font color='{PAL.OUT_R}'><b>RED / ORANGE, dashed</b></font>", CELL), P(f"Tile side, RIGHT channel (OUT R+, R-). Long runs: {runs(pick(OUT_W, 'R'))}.", CELL)],
+    [P(f"<font color='{PAL.IN_L}'><b>BLUE</b></font>", CELL), P(f"WMD side, LEFT channel (IN L+, L-). Long runs: {runs(pick(IN_W, 'L'))}.", CELL)],
+    [P(f"<font color='{PAL.IN_R}'><b>PURPLE</b></font>", CELL), P(f"WMD side, RIGHT channel (IN R+, R-). Long runs: {runs(pick(IN_W, 'R'))}.", CELL)],
+    [P(f"<font color='{PAL.OUT_L}'><b>RED</b></font>", CELL), P(f"Tile side, LEFT channel (OUT L+, L-). Long runs: {runs(pick(OUT_W, 'L'))}.", CELL)],
+    [P(f"<font color='{PAL.OUT_R}'><b>ORANGE</b></font>", CELL), P(f"Tile side, RIGHT channel (OUT R+, R-). Long runs: {runs(pick(OUT_W, 'R'))}.", CELL)],
     [P(f"<font color='{PAL.SH_C}'><b>GREEN</b></font>", CELL), P("Shields: pin 9 of each transformer to OUT GND "
        + " and ".join(xy(c) for c in GND_USED) + ". Longest runs: " + ", ".join(f"T{1 if r[2][0] == pin('T1', 9) else 2} {longest(r[2])}" for r in SH_W) + ".", CELL)],
-    [P("<font color='#666666'><b>GREY / BLACK</b></font>", CELL), P(f"Bridges 3-6 and 8-12: {BRIDGES}. No jumpers anywhere.", CELL)],
+    [P("<font color='#666666'><b>GREY</b></font>", CELL), P(f"Bridges 3-6 and 8-12: {BRIDGES}. No jumpers anywhere.", CELL)],
 ], colWidths=[34 * mm, 140 * mm])
 key.setStyle(grid_style(header=False))
 story.append(key)
-story.append(P("On the drawings the left channel is the darker shade and solid, the right channel lighter and dashed. With Sharpies, one blue "
-               "and one red or orange are enough: draw the right channel dashed. "
+story.append(P("Left and right channels have their own colours: blue and purple on the WMD side, red and orange on the tile side. "
                "Draw the lines in the gaps beside the holes, not through the pad rings. Ink under a joint still solders; it just looks scruffy. "
-               "A blue wire touching an orange one anywhere is a failed board.", SM))
+               "A WMD-side wire (blue or purple) touching a tile-side one (red or orange) anywhere is a failed board.", SM))
 
 # ===== PAGES 2-3: drawings =====
 story.append(NextPageTemplate("land"))
@@ -255,7 +254,7 @@ for t in [
     "Seat T1 and T2 from the top with the primary pins toward the IN end. Every pin drops in without force. Solder all 11 pins on each; short passes.",
     f"Bridges first (grey): {BRIDGES}.",
     *([f"<b>{mirror_note}</b>"] if mirror_note else []),
-    *[f"<font color='{PAL.wire_style(r[0])[0]}'><b>{wire_name(r)}</b></font>{' (dashed)' if PAL.wire_style(r[0])[1] else ''} "
+    *[f"<font color='{PAL.wire_colour(r[0])}'><b>{wire_name(r)}</b></font> "
       + describe(r[2]) + (f" Solder it together with the T1 shield on {xy(GND_USED[0])}." if r is SH_W[-1] and len(GND_USED) == 1 and len(SH_W) == 2 else "")
       for r in IN_W + OUT_W + SH_W],
     f"No wire on: IN GND pins " + " and ".join(xy(c) for c, lab in sorted(RF["IN_MAP"].items()) if lab.startswith("GND"))
