@@ -14,11 +14,17 @@ H1 = ParagraphStyle("H1", fontName="Helvetica-Bold", fontSize=16, leading=20, sp
 H2 = ParagraphStyle("H2", fontName="Helvetica-Bold", fontSize=11.5, leading=14, spaceBefore=6, spaceAfter=2)
 B = ParagraphStyle("B", fontName="Helvetica", fontSize=9.6, leading=12.4)
 SM = ParagraphStyle("SM", fontName="Helvetica", fontSize=8.4, leading=10.6, textColor=colors.HexColor("#444"))
-CK = ParagraphStyle("CK", fontName="Helvetica", fontSize=9.3, leading=11.8, leftIndent=14, firstLineIndent=-14, spaceAfter=1.5)
+CK = ParagraphStyle("CK", fontName="Helvetica", fontSize=8.8, leading=10.8, leftIndent=14, firstLineIndent=-14, spaceAfter=1.0)
+# checklist page only: slightly tighter headings and table so the build order fits on page 4
+H2C = ParagraphStyle("H2C", parent=H2, spaceBefore=3, spaceAfter=1)
+CELLC = ParagraphStyle("CELLC", fontName="Helvetica", fontSize=8.0, leading=9.4)
 CELL = ParagraphStyle("CELL", fontName="Helvetica", fontSize=8.6, leading=10.6)
 CELLB = ParagraphStyle("CELLB", fontName="Helvetica-Bold", fontSize=8.6, leading=10.6)
 
-IN_C, OUT_C, SH_C, BR_C = colors.HexColor("#1F6FB2"), colors.HexColor("#D9541E"), colors.HexColor("#2E8B57"), colors.HexColor("#7A7A7A")
+import os as _os, sys as _sys
+_sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
+import palette as PAL                  # same wire colours as routing.py
+IN_C, OUT_C, SH_C, BR_C = (colors.HexColor(c) for c in (PAL.IN_C, PAL.OUT_C, PAL.SH_C, PAL.BR_C))
 
 def grid_style(header=True):
     st = [("FONT", (0, 0), (-1, -1), "Helvetica", 8.6),
@@ -98,13 +104,9 @@ for (c, r), lab in RF["OUT_MAP"].items(): NAMES[(c, r)] = "OUT " + lab.split("\n
 def xy(c): return f"({c[0]},{c[1]})"
 def name(c): return f"{NAMES[c]} {xy(c)}" if c in NAMES else xy(c)
 def describe(pts):
-    parts = []
-    segs = list(zip(pts, pts[1:]))
-    for i, ((a, b), (c, d)) in enumerate(segs):
-        last = i == len(segs) - 1
-        if b == d: parts.append(f"along row {b} " + (f"into {name((c, d))}" if last else f"to col {c}"))
-        else: parts.append(("down" if d > b else "up") + f" col {a} " + (f"into {name((c, d))}" if last else f"to row {d}"))
-    return f"{name(pts[0])}: " + ", ".join(parts) + "."
+    """Corner holes in order; the wire runs straight between them."""
+    via = ", ".join(xy(c) for c in pts[1:-1])
+    return f"from {name(pts[0])}" + (f" via {via}" if via else "") + f" to {name(pts[-1])}."
 def longest(pts):
     (a, b), (c, d) = max(zip(pts, pts[1:]), key=lambda s: abs(s[0][0] - s[1][0]) + abs(s[0][1] - s[1][1]))
     return f"row {b}" if b == d else f"col {a}"
@@ -191,16 +193,22 @@ story.append(P(f"<b>Orientation:</b> {orient('IN', CFG['in_rot'], 'WMD')}. Then 
                + "Both ribbons pin 1 to pin 1, stripe on the same side at both ends; make them different lengths.", SM))
 story.append(P("3. Sharpie key for the underside", H2))
 runs = lambda ws: ", ".join(f"{r[0].split(' :')[0]} {longest(r[2])}" for r in ws)
+pick = lambda ws, ch: [r for r in ws if r[0][0] == ch]
+# key labels wear the wire colour, except grey: the bridge grey is too light for text
 key = Table([
-    [P("<font color='#1F6FB2'><b>BLUE</b></font>", CELL), P(f"WMD side: L+, L-, R+, R-. Long runs: {runs(IN_W)}.", CELL)],
-    [P("<font color='#D9541E'><b>ORANGE / RED</b></font>", CELL), P(f"Tile side: L+, L-, R+, R-. Long runs: {runs(OUT_W)}.", CELL)],
-    [P("<font color='#2E8B57'><b>GREEN</b></font>", CELL), P("Shields: pin 9 of each transformer to OUT GND "
+    [P(f"<font color='{PAL.IN_L}'><b>BLUE, solid</b></font>", CELL), P(f"WMD side, LEFT channel (IN L+, L-). Long runs: {runs(pick(IN_W, 'L'))}.", CELL)],
+    [P(f"<font color='{PAL.IN_R}'><b>BLUE, dashed</b></font>", CELL), P(f"WMD side, RIGHT channel (IN R+, R-). Long runs: {runs(pick(IN_W, 'R'))}.", CELL)],
+    [P(f"<font color='{PAL.OUT_L}'><b>RED / ORANGE, solid</b></font>", CELL), P(f"Tile side, LEFT channel (OUT L+, L-). Long runs: {runs(pick(OUT_W, 'L'))}.", CELL)],
+    [P(f"<font color='{PAL.OUT_R}'><b>RED / ORANGE, dashed</b></font>", CELL), P(f"Tile side, RIGHT channel (OUT R+, R-). Long runs: {runs(pick(OUT_W, 'R'))}.", CELL)],
+    [P(f"<font color='{PAL.SH_C}'><b>GREEN</b></font>", CELL), P("Shields: pin 9 of each transformer to OUT GND "
        + " and ".join(xy(c) for c in GND_USED) + ". Longest runs: " + ", ".join(f"T{1 if r[2][0] == pin('T1', 9) else 2} {longest(r[2])}" for r in SH_W) + ".", CELL)],
-    [P("<font color='#7A7A7A'><b>GREY / BLACK</b></font>", CELL), P(f"Bridges 3-6 and 8-12: {BRIDGES}. No jumpers anywhere.", CELL)],
+    [P("<font color='#666666'><b>GREY / BLACK</b></font>", CELL), P(f"Bridges 3-6 and 8-12: {BRIDGES}. No jumpers anywhere.", CELL)],
 ], colWidths=[34 * mm, 140 * mm])
 key.setStyle(grid_style(header=False))
 story.append(key)
-story.append(P("Draw the lines in the gaps beside the holes, not through the pad rings. Ink under a joint still solders; it just looks scruffy. "
+story.append(P("On the drawings the left channel is the darker shade and solid, the right channel lighter and dashed. With Sharpies, one blue "
+               "and one red or orange are enough: draw the right channel dashed. "
+               "Draw the lines in the gaps beside the holes, not through the pad rings. Ink under a joint still solders; it just looks scruffy. "
                "A blue wire touching an orange one anywhere is a failed board.", SM))
 
 # ===== PAGES 2-3: drawings =====
@@ -219,15 +227,14 @@ story.append(P("Use this page at the iron. The IN end is now on the RIGHT. Lay s
 story.append(NextPageTemplate("portrait"))
 story.append(PageBreak())
 story.append(P("4. Build order", H1))
-story.append(P("The directions give hole coordinates (col,row). Up and down mean toward row 0 and row 16; they are the same on both drawings.", SM))
-story.append(P("A. Prepare", H2))
+story.append(P("A. Prepare", H2C))
 for t in [
     f"Cut the board to {COLS} x 17 holes ({COLS * 2.54:.0f} x 43 mm). Score both faces along a hole row with a knife against a rule, snap over a table edge, tidy with P120 on the block. Backup: junior hacksaw (32 TPI). Wipe the glass dust off.",
     f"Mark the two transformer footprints on TOP: primary column at col {CFG['t1']} (T1) and col {CFG['t2']} (T2), secondary column 14 holes on, at col {CFG['t1'] + 14} and col {CFG['t2'] + 14}. Pins at rows 3, 5, 7, 9, 11, 13 (primary) and 3, 5, 9, 11, 13 (secondary). Check a transformer physically against the marks before drilling.",
     "Drill the 22 footprint holes to 1.5 mm with the HOTO at 600 rpm, light pressure. The existing hole centres the bit. All other holes stay 1.0 mm.",
     "Sharpie the routing on the UNDERSIDE using page 3 and the colour key.",
 ]: story.append(ck(t))
-story.append(P("B. Headers and ribbons", H2))
+story.append(P("B. Headers and ribbons", H2C))
 for t in [
     f"Fit both 2x3 box headers from the top: IN at cols {CFG['in_col']}-{CFG['in_col'] + 1} rows {HR}-{HR + 2}, OUT at cols {CFG['out_col']}-{CFG['out_col'] + 1} rows {HR}-{HR + 2}, "
     f"oriented as in section 2 ({'OUT header turned 180°, GND pins toward the bottom' if CFG['out_rot'] else 'GND pins toward the top'}). Tack one pin, check it sits flat, solder the rest.",
@@ -238,7 +245,7 @@ for t in [
     + " and ".join(xy(c) for c in sorted((c[0], 2 * HR + 2 - c[1]) for c, lab in RF["OUT_MAP"].items() if lab.startswith("GND")))
     + " instead, the header is the wrong way round: stop and refit it.",
 ]: story.append(ck(t))
-story.append(P("C. Transformers and wiring", H2))
+story.append(P("C. Transformers and wiring <font size=8.4 name=Helvetica>(each wire: corner holes (col,row) in order, straight runs between them)</font>", H2C))
 def wire_name(r):
     lab = r[0]
     if lab.startswith("shield"): return f"T{1 if r[2][0] == pin('T1', 9) else 2} shield"
@@ -248,31 +255,30 @@ for t in [
     "Seat T1 and T2 from the top with the primary pins toward the IN end. Every pin drops in without force. Solder all 11 pins on each; short passes.",
     f"Bridges first (grey): {BRIDGES}.",
     *([f"<b>{mirror_note}</b>"] if mirror_note else []),
-    *[f"<font color='#1F6FB2'><b>{wire_name(r)}</b></font> (blue) from " + describe(r[2]) for r in IN_W],
-    *[f"<font color='#D9541E'><b>{wire_name(r)}</b></font> (orange) from " + describe(r[2]) for r in OUT_W],
-    *[f"<font color='#2E8B57'><b>{wire_name(r)}</b></font> (green) from " + describe(r[2]) for r in SH_W],
-    *([f"Both shield wires end on {xy(GND_USED[0])}: solder them together on that pin."] if len(GND_USED) == 1 and len(SH_W) == 2 else []),
+    *[f"<font color='{PAL.wire_style(r[0])[0]}'><b>{wire_name(r)}</b></font>{' (dashed)' if PAL.wire_style(r[0])[1] else ''} "
+      + describe(r[2]) + (f" Solder it together with the T1 shield on {xy(GND_USED[0])}." if r is SH_W[-1] and len(GND_USED) == 1 and len(SH_W) == 2 else "")
+      for r in IN_W + OUT_W + SH_W],
     f"No wire on: IN GND pins " + " and ".join(xy(c) for c, lab in sorted(RF["IN_MAP"].items()) if lab.startswith("GND"))
     + ("; OUT GND " + " and ".join(xy(c) for c in GND_FREE) if GND_FREE else "") + "; pins 2 and 5 of each transformer.",
 ]: story.append(ck(t))
-story.append(P("D. Bench tests, before it goes anywhere near the case", H2))
+story.append(P("D. Bench tests, before it goes anywhere near the case", H2C))
 sig_out = ", ".join(xy(c) for c, lab in sorted(RF["OUT_MAP"].items()) if not lab.startswith("GND"))
 tests = Table([
-    [P("<b>Meter between</b>", CELL), P("<b>Expect</b>", CELL), P("<b>Means</b>", CELL)],
-    [P("T pin 1 and pin 4 (each transformer)", CELL), P("about 18 ohm", CELL), P("primaries in series, bridge good", CELL)],
-    [P("T pin 7 and pin 11 (each transformer)", CELL), P("about 19 ohm", CELL), P("secondaries in series, bridge good", CELL)],
-    [P("T pin 1 and pin 7", CELL), P("OPEN", CELL), P("no copper between the sides", CELL)],
-    [P("T pin 9 and pin 1; pin 9 and pin 7", CELL), P("OPEN", CELL), P("housing touches no coil", CELL)],
-    [P("IN header GND and OUT header GND", CELL), P("OPEN", CELL), P("the isolation itself", CELL)],
-    [P("every IN signal pin and every OUT pin", CELL), P("OPEN", CELL), P("no stray bridge across domains", CELL)],
-    [P("IN L+ and IN L-; IN R+ and IN R-", CELL), P("about 18 ohm", CELL), P("header to primary correct" + (f" ({', '.join(MIRRORED)} mirrored)" if MIRRORED else ""), CELL)],
-    [P("OUT L+ and OUT L-; OUT R+ and OUT R-", CELL), P("about 19 ohm", CELL), P("secondary to header correct", CELL)],
-    [P(f"OUT GND {' / '.join(xy(c) for c in GND_USED)} and T1 pin 9; and T2 pin 9", CELL), P("0 ohm", CELL), P("both shields landed", CELL)],
-    [P(f"OUT GND and each OUT signal hole {sig_out}", CELL), P("OPEN", CELL), P("no shield wire touching a signal wire", CELL)],
+    [P("<b>Meter between</b>", CELLC), P("<b>Expect</b>", CELLC), P("<b>Means</b>", CELLC)],
+    [P("T pin 1 and pin 4 (each transformer)", CELLC), P("about 18 ohm", CELLC), P("primaries in series, bridge good", CELLC)],
+    [P("T pin 7 and pin 11 (each transformer)", CELLC), P("about 19 ohm", CELLC), P("secondaries in series, bridge good", CELLC)],
+    [P("T pin 1 and pin 7", CELLC), P("OPEN", CELLC), P("no copper between the sides", CELLC)],
+    [P("T pin 9 and pin 1; pin 9 and pin 7", CELLC), P("OPEN", CELLC), P("housing touches no coil", CELLC)],
+    [P("IN header GND and OUT header GND", CELLC), P("OPEN", CELLC), P("the isolation itself", CELLC)],
+    [P("every IN signal pin and every OUT pin", CELLC), P("OPEN", CELLC), P("no stray bridge across domains", CELLC)],
+    [P("IN L+ and IN L-; IN R+ and IN R-", CELLC), P("about 18 ohm", CELLC), P("header to primary correct" + (f" ({', '.join(MIRRORED)} mirrored)" if MIRRORED else ""), CELLC)],
+    [P("OUT L+ and OUT L-; OUT R+ and OUT R-", CELLC), P("about 19 ohm", CELLC), P("secondary to header correct", CELLC)],
+    [P(f"OUT GND {' / '.join(xy(c) for c in GND_USED)} and T1 pin 9; and T2 pin 9", CELLC), P("0 ohm", CELLC), P("both shields landed", CELLC)],
+    [P("OUT GND and each OUT signal pin", CELLC), P("OPEN", CELLC), P("no shield wire touching a signal wire", CELLC)],
 ], colWidths=[66 * mm, 28 * mm, 82 * mm])
-tests.setStyle(grid_style())
+tests.setStyle(grid_style()); tests.setStyle(TableStyle([("TOPPADDING", (0, 0), (-1, -1), 1.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5), ("FONT", (0, 0), (-1, -1), "Helvetica", 8.0)]))
 story.append(tests)
-story.append(P("E. Sleeve, mount, install", H2))
+story.append(P("E. Sleeve, mount, install", H2C))
 for t in [
     "Cut about 150 mm of the 70 mm ISOLATECH tube. Slide on with both ribbons plugged, shrink from the centre out with the gun moving. Ends stay open.",
     "Mark IN and OUT on the sleeve with a paint pen.",
