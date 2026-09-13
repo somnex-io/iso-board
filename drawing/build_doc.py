@@ -220,8 +220,19 @@ story.append(NextPageTemplate("land"))
 story.append(PageBreak())
 story.append(P("Routing, TOP view (component side). Column 0 is the IN end, row 0 is the top edge.", H2))
 story.append(drawing("outputs/iso-board-routing.png"))
-RING_EMPTY = not any(c in (0, COLS - 1) or r in (0, ROWS - 1) for *_, pts, _ in ROUTES_L for c, r in pts)
-story.append(P("v3 for the measured headers. " + ("The outermost ring of holes gets no wire on purpose: a spare border in case an edge chips. " if RING_EMPTY else "")
+def wire_name(r):
+    lab = r[0]
+    if lab.startswith("shield"): return f"T{1 if r[2][0] == pin('T1', 9) else 2} shield"
+    if "bridge" in lab: return lab
+    return ("IN " if ": IN" in lab else "OUT ") + lab.split(" :")[0]
+# a run can only reach an edge line with a corner on it, so corner points are enough
+EDGES = {"col 0 (IN end)": lambda c, r: c == 0, f"col {COLS - 1} (OUT end)": lambda c, r: c == COLS - 1,
+         "row 0 (top edge)": lambda c, r: r == 0, f"row {ROWS - 1} (bottom edge)": lambda c, r: r == ROWS - 1}
+ON_EDGE = {e: [wire_name(r) for r in ROUTES_L if any(f(c, rr) for c, rr in r[2])] for e, f in EDGES.items()}
+EDGE_NOTE = ((" and ".join(e for e, n in ON_EDGE.items() if not n) + " carry no wire (spare). " if any(not n for n in ON_EDGE.values()) else "")
+             + ("Wire runs in the edge holes of " + "; ".join(f"{e}: {', '.join(n)}" for e, n in ON_EDGE.items() if n) + ". Handle those edges with care. "
+                if any(ON_EDGE.values()) else ""))
+story.append(P("v3 for the measured headers. " + EDGE_NOTE[:1].upper() + EDGE_NOTE[1:]
                + "Bodies on top, every wire underneath. Machine-checked (solver/check_routes.py): no wire crosses another "
                "and no two wires share a hole, except the two shield wires that end on the same GND pin.", SM))
 story.append(PageBreak())
@@ -252,10 +263,6 @@ for t in [
     + " instead, the header is the wrong way round: stop and refit it.",
 ]: story.append(ck(t))
 story.append(P("C. Transformers and wiring <font size=8.4 name=Helvetica>(each wire: corner holes (col,row) in order, straight runs between them)</font>", H2C))
-def wire_name(r):
-    lab = r[0]
-    if lab.startswith("shield"): return f"T{1 if r[2][0] == pin('T1', 9) else 2} shield"
-    return ("IN " if ": IN" in lab else "OUT ") + lab.split(" :")[0]
 mirror_note = " ".join(f"{t} is mirrored: IN {CH[t]}+ goes to pin 4 and IN {CH[t]}- to pin 1; OUT {CH[t]}+ comes from pin 11 and OUT {CH[t]}- from pin 7." for t in MIRRORED)
 for t in [
     "Seat T1 and T2 from the top with the primary pins toward the IN end. Every pin drops in without force. Solder all 11 pins on each; short passes.",
