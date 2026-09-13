@@ -42,6 +42,40 @@ Loop area, for scale: 200 square pitches is about 13 cm² in total over four pai
 100 µT hum field that is tens of microvolts, roughly 90 dB below line level (an estimate; the field
 in the case is unknown). It is a tie-breaker, not a problem to solve.
 
+### Decision, 13 Sept: no jumper to shrink the OUT L loop
+
+**Considered:** adding one insulated jumper specifically to shrink the OUT L loop, the outlier in v3.
+Per-pair loop areas (`solver/analyse_pairs.py`, square hole pitches): IN L 19, IN R 30, OUT L 112,
+OUT R 39. The OUT L loop wraps R's whole output circuit (all of OUT R+ and R-, and 13 holes of T2's
+8-12 bridge), and OUT L- runs 25 mm beside OUT R+ at 2.54 mm.
+
+**The split itself is structural and no jumper removes it.** With the OUT header rotated, L- at
+(45,8) and L+ at (46,8) each have exactly one free orthogonal neighbour, (44,8) and (47,8); up, down
+and inward are all pin holes. No wire may pass through a pin hole, and a jumper only crosses over
+wires, so one leg always has to go round the header block. A jumper can only change how big that
+wrap is.
+
+**Partial numbers, not proven minima** (`solver/jumper_probe.py`: reroutes only OUT L, T1-end portion
+and every other wire kept as v3; best found in 150 s per run; results in `solver/results/jumper_probe/`):
+
+| OUT L rerouted, rest of v3 fixed | OUT L area | total area | R holes inside OUT L loop | longest L-beside-R run at 2.54 mm |
+|---|---|---|---|---|
+| v3 as built | 112 | 200 | 48 | 25 mm |
+| no jumper | 99 | 187 | 48 | 25 mm |
+| one jumper: 3 pitches on OUT L-, (44,3) to (44,6), over OUT R+ (44,4) and OUT R- (44,5) | 46 | 134 | 8 | 10 mm |
+
+Crosstalk estimates (loop shapes from the route data, windings approximated as the pin column):
+mutual inductance OUT L to OUT R loop 16.8 nH (v3) against 0.8 nH (one jumper). Magnetic, +18 dBu at
+20 kHz: -134 dB against -161 dB into 10 kΩ; -109 dB against -136 dB into 600 Ω. Capacitive, worst
+L-beside-R run, 100 Ω source, 20 kHz: -100 dB against -108 dB. Either way far below a desk's own
+channel crosstalk (about -80 to -90 dB).
+
+**Rejected on vertical clearance, not on the electrical numbers** (Steven: "We are really tight on
+vertical space, so unless it's a large difference, which it sounds like it's immaterial anyway, we
+should not add a jumper"). An insulated jumper stands proud of the board and the enclosure is
+height-constrained. Only reopen if that changes; start from
+`solver/results/jumper_probe/v3_outL_jumpers1_span3.py`.
+
 ## Previous build: `solver/routes_v2.py` (1 jumper)
 - T1 normal (hot 1 / cold 4, out 7 / 11). T2 MIRRORED (hot 4 / cold 1, out 11 / 7).
 - Both headers rot 0 (GND row toward row 0).

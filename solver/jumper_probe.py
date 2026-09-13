@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Costing probe: how small can the OUT L loop get with at most K insulated jumpers, everything else fixed?
 
+STOPPED 13 Sept 2026: Steven decided against any jumper (vertical clearance in the enclosure), so this
+was not taken further. Its results are best found within 150 s, not proven minima, and the no-jumper
+feasibility phase can time out. Decision and numbers: docs/STATE-OF-PLAY.md.
+
 Reroutes only OUT L+ and OUT L- on the holes the other wires of a routes file leave free. A jumper is
 a straight insulated run between two free holes that may pass over other wires' holes; never over a
 pin or header hole, and never over either OUT L wire. Minimises the OUT L loop area (same polygon as
