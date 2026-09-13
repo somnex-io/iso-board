@@ -13,7 +13,11 @@ junction "@col,row", so each wire is one straight run of the route.
 """
 import importlib.util
 import json
+import os
 import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "drawing"))
+from palette import wire_colour  # same colours as the drawings, not the routes file's own
 
 T_PRI = ("6", "5", "4", "3", "2", "1")  # rows 3,5,7,9,11,13 (+trow)
 T_SEC = ("12", "11", None, "9", "8", "7")
@@ -76,9 +80,9 @@ def calls(path, old_path=None):
             for a, b in zip(pts, pts[1:]):
                 if frozenset((a, b)) not in keep:
                     print(json.dumps({"cut": [name(a), name(b)]}))
-    for label, colour, pts, _ in mod.routes:
+    for label, _, pts, _ in mod.routes:
         segs = [[name(a), name(b)] for a, b in zip(pts, pts[1:]) if frozenset((a, b)) not in keep]
-        print(json.dumps({"net": net_name(label), "colour": colour, "connect": segs}))
+        print(json.dumps({"net": net_name(label), "colour": wire_colour(label), "connect": segs}))
 
 
 def check(path, board_path="perfboarder/somnex-iso-board.json"):
@@ -93,8 +97,13 @@ def check(path, board_path="perfboarder/somnex-iso-board.json"):
     bad = sorted(n for n in want.keys() | got.keys() if want.get(n) != got.get(n))
     for n in bad:
         print(f"MISMATCH {n}: board has {len(got.get(n, ()))} segments, routes have {len(want.get(n, ()))}")
-    print(f"{len(got)} nets, {sum(map(len, got.values()))} segments: {'match' if not bad else 'DIFFERENT'}")
-    return not bad
+    got_c = {n["name"]: n.get("colour", "").lower() for n in board["nets"]}
+    want_c = {net_name(label): wire_colour(label).lower() for label, *_ in mod.routes}
+    bad_c = sorted(n for n in want_c if got_c.get(n) != want_c[n])
+    for n in bad_c:
+        print(f"COLOUR {n}: board has {got_c.get(n)}, palette has {want_c[n]}")
+    print(f"{len(got)} nets, {sum(map(len, got.values()))} segments: {'match' if not bad else 'DIFFERENT'}; colours {'match' if not bad_c else 'DIFFERENT'}")
+    return not bad and not bad_c
 
 
 if __name__ == "__main__":

@@ -23,7 +23,9 @@ see, instead of asking him to read coordinates out of a Python file.
 
 - Perfboarder holes are 1-based: our `(col, row)` is Perfboarder `(col+1, row+1)`, same axis
   directions (checked by screenshot). Its hole labels letter columns from the other end (our
-  col 0 is "AV", col 47 is "A"); ignore the letters.
+  col 0 is "AV", col 47 is "A"); ignore the letters. Label of our `(col, row)`: letter number
+  `47 - col` (A=0 .. Z=25, AA=26 .. AV=47) then `row + 1` as two digits. Checked against the
+  `board` tool's pin labels on 13 Sept: IN L+ (1,8) is AU09, OUT R- (45,7) is C08.
 - Part kinds defined on the board: `lundahl-ll1517` (origin pin 6, pins named "1" to "12",
   secondary column 14 holes right) and `2x3-box-header-gnd-l-r` (origin GND1; pins GND1 GND2 /
   L+ L- / R+ R-). A header at rot 1 is `rotation: 180` with its origin at the lower right pin.
@@ -36,9 +38,12 @@ see, instead of asking him to read coordinates out of a Python file.
 2. `python3 perfboarder/routes_bridge.py calls ROUTES.py --from CURRENT.py` prints the part
    positions, the `cut` calls for wires that go away and the `connect` calls per net (drop
    `--from` for an empty board). Run them in order. Cuts and merges reshuffle net names, so read
-   the `board` tool afterwards, then `name_net` and `colour_net` (IN #1F6FB2, OUT #D9541E,
-   bridges #7A7A7A, shield #2E8B57). Placement changes need `move_part`/`rotate_part` first.
-3. Call `export_board`, then `python3 perfboarder/routes_bridge.py check ROUTES.py` must exit 0.
+   the `board` tool afterwards, then `name_net` and `colour_net` with the colour each net has in
+   the `calls` output. Colours come from `drawing/palette.py`, the same as the drawings (IN left
+   #10347D, IN right #7456B8, OUT left #A23125, OUT right #B57A09, shield #328B5F, bridges
+   #A0A0A0). Placement changes need `move_part`/`rotate_part` first.
+3. Call `export_board`, then `python3 perfboarder/routes_bridge.py check ROUTES.py` must exit 0
+   (it compares net colours with the palette as well as the segments).
    Commit `perfboarder/somnex-iso-board.json`.
 4. If Steven edits a layout by hand, export it, convert the nets to the routes format and run it
    through `solver/check_routes.py` before treating it as valid (no converter exists yet).
