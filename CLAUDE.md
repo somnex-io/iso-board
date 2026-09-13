@@ -126,6 +126,13 @@ planned 48 x 17 board with no components moved; see `docs/STATE-OF-PLAY.md`.
 
 ## Style notes for the user-facing deliverables
 
-The user has printed an earlier bench sheet. Keep the coordinate system, colours and the
-page structure the same (page 1 reference, page 2 top view, page 3 mirrored underside view,
-page 4 checklist). No em dashes in any text. Concise, plain language, no marketing tone.
+The user has printed earlier bench sheets. Keep the coordinate system, line weights and the page
+structure the same: exactly 4 pages (page 1 reference, page 2 top view, page 3 mirrored underside
+view, page 4 checklist). No em dashes in any text. Concise, plain language, no marketing tone.
+
+Colours changed on 13 Sept at Steven's request ("draw left and right as different colors"). On top
+of IN = blue, OUT = red/orange, shield = green, bridges = grey, the left channel is drawn darker
+and solid and the right channel lighter and dashed. The palette lives in `drawing/palette.py`,
+shared by the drawings and the bench sheet. It is printed and built from paper, so it must stay
+readable in greyscale (never colour alone: keep the dash) and for colour-blind readers (no
+red/green pairs); re-check separation and contrast against the board colour if you change it.
