@@ -73,6 +73,13 @@ only one winding reversed.
   bugs (it was written in a hurry and never validated against the known 1-jumper solution).
   **First step: validate the model** by feeding it routes_v2 minus the jumper as a hint, or by
   relaxing one constraint and confirming it finds a solution.
+- 13 Sept follow-up: those two INFEASIBLE results were really UNKNOWN (time limit); the v1
+  script printed INFEASIBLE for any run without a solution. v1 was replaced by a circuit model
+  (v3), validated against routes_v2 (`solver/results/validation.jsonl`). v3 finds solutions
+  quickly when there is slack but not on the tight full problem, so it is not a practical
+  prover here. The negotiated-congestion router (`solver/negotiate.py`) found zero-jumper
+  routings at the default placement; each is re-checked by `solver/check_routes.py` and by
+  CP-SAT with the route fixed.
 
 ## Definition of done
 
@@ -94,10 +101,17 @@ recommended build and say so.
 
 ## How to run
 
+**Resource limits (non-negotiable; an uncapped run OOM-killed the Mac on 13 Sept):** CP-SAT at
+most 4 workers, one solver process at a time in the foreground, always wrapped in
+`solver/memguard.py MAX_MB --` (macOS ignores `ulimit -v`, and CP-SAT's `max_memory_in_mb`
+is not enforced there). Checkpoint results to `solver/results/*.jsonl` as each run finishes.
+
 ```
 pip install ortools matplotlib reportlab
 python3 solver/final_routes.py                     # checker for a hard-coded route set
-python3 solver/cpsat_route.py IN_ROT OUT_ROT M1 M2 [seconds]   # e.g. 0 0 0 0 120
+python3 solver/check_routes.py ROUTES.py           # independent checker + soft-preference score
+python3 solver/memguard.py 6000 -- python3 solver/negotiate.py --configs all   # heuristic router
+python3 solver/memguard.py 6000 -- python3 solver/cpsat_route.py IN_ROT OUT_ROT M1 M2 [seconds] [--fix/--hint ROUTES.py]
 python3 drawing/routing.py && python3 drawing/routing.py --mirror   # writes outputs/*.png/.svg
 python3 drawing/build_doc.py                       # writes outputs/FOH-iso-board_bench-sheet.pdf
 ```
