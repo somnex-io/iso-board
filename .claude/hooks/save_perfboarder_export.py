@@ -5,6 +5,7 @@ export of an unchanged board leaves the file unchanged.
 """
 import json
 import os
+import re
 import sys
 
 
@@ -22,7 +23,9 @@ if not isinstance(board, dict) or "parts" not in board:
     sys.exit("save_perfboarder_export: tool_response is not a board export")
 board.pop("updatedAt", None)
 root = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
-path = os.path.join(root, "perfboarder", f"{board.get('name', 'board')}.json")
+# The board name comes from the browser: keep it to one plain file name inside perfboarder/.
+name = re.sub(r"[^A-Za-z0-9_-]+", "_", str(board.get("name") or "board"))
+path = os.path.join(root, "perfboarder", f"{name}.json")
 os.makedirs(os.path.dirname(path), exist_ok=True)
 with open(path, "w") as f:
     json.dump(board, f, indent=2)
