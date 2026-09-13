@@ -6,17 +6,18 @@ see, instead of asking him to read coordinates out of a Python file.
 
 ## Setup (as of 13 Sept 2026)
 
-- A board named `somnex-iso-board` is open in Steven's browser, sized to match the real board:
-  49 x 18 as cut on 13 Sept (it was 48 x 17, the planned cut). It shows FRONT (component side) and BACK (wire side,
-  mirrored) side by side: the same convention as `drawing/routing.py` and `drawing/routing.py --mirror`.
-- **Current board: `solver/routes_v3.py`.** `perfboarder/somnex-iso-board.json` is the last export;
-  `python3 perfboarder/routes_bridge.py check solver/routes_v3.py` confirms it (size, part positions,
-  nets, colours and segments).
-  **Pending (13 Sept):** the open board and the export are still 48 x 17, so `check` fails on size
-  only. The resize below has not been run yet: this session had no bridge (see the port note).
-- **48 x 17 to 49 x 18:** the layout keeps its coordinates; the spare column and row go at the OUT
-  end and the bottom. On the board that is one call, `resize_board {right: 1, bottom: 1}`: growing on
-  the right or bottom moves nothing, so parts, junctions, nets and colours stay put. No rebuild.
+- A board named `somnex-iso-board` is open in Steven's browser, sized 48 x 17 (the planned cut). It
+  shows FRONT (component side) and BACK (wire side, mirrored) side by side: the same convention as
+  `drawing/routing.py` and `drawing/routing.py --mirror`.
+- **Current board: `solver/routes_v3.py`.** `perfboarder/somnex-iso-board.json` is the last export.
+- **Known and accepted: the Perfboarder board is still 48 x 17; the repo is 49 x 18.** The physical
+  board was cut 49 x 18 on 13 Sept and the repo follows it, but the Perfboarder board has not been
+  resized to match. Steven has marked the physical board and chose to leave it (13 Sept). So
+  `python3 perfboarder/routes_bridge.py check solver/routes_v3.py` fails with
+  `SIZE board is 48 x 17, routes are 49 x 18`, while nets, colours, segments and part positions all
+  match. That failure is expected, not a bug. The fix is one call whenever someone next has the
+  bridge free: `resize_board {right: 1, bottom: 1}` (growing on the right or bottom moves nothing,
+  so parts, junctions, nets and colours stay put), then `export_board` and `check` again.
 - Perfboarder's agent bridge listens on `localhost:4870`. The MCP server process owns that port,
   so only one Claude session at a time has a working bridge (the one started first); in the
   others every tool fails with "no Perfboarder tab is connected".
@@ -37,9 +38,10 @@ see, instead of asking him to read coordinates out of a Python file.
   `python3 perfboarder/routes_bridge.py labels solver/routes_v3.py` prints every pin's label.
   Derived from the 48 x 17 readings of 13 Sept (IN L+ (1,8) was AU09, OUT R- (45,7) was C08: only
   "from the right" fits the letters, and only "from the top" fits C08). Growing the board at the
-  OUT end moves every letter on by one while our coordinates stay: on 49 x 18 expect the IN header
-  at AV08 to AU10 (IN L+ (1,8) is AV09, was AU09) and the OUT header at D08 to C10 (OUT R- (45,7) is
-  D08, was C08). Not yet read back from the resized board: until it is, trust `@col,row` over the letters.
+  OUT end moves every letter on by one while our coordinates stay: once resized to 49 x 18 expect the
+  IN header at AV08 to AU10 (IN L+ (1,8) AV09) and the OUT header at D08 to C10 (OUT R- (45,7) D08).
+  While the board stays 48 x 17 it shows the old letters (AU09, C08), one letter off from the 49 x 18
+  formula: trust `@col,row` over the letters. `labels` prints the 49 x 18 ones (from the routes file).
 - Part kinds defined on the board: `lundahl-ll1517` (origin pin 6, pins named "1" to "12",
   secondary column 14 holes right) and `2x3-box-header-gnd-l-r` (origin GND1; pins GND1 GND2 /
   L+ L- / R+ R-). A header at rot 1 is `rotation: 180` with its origin at the lower right pin.
