@@ -52,7 +52,10 @@ in the case is unknown). It is a tie-breaker, not a problem to solve.
 
 ## What the solvers said
 
-- The v1 CP-SAT log's two INFEASIBLE results were time limits, mislabelled by the old script.
+- The v1 CP-SAT log's two INFEASIBLE results were time limits, mislabelled by the old script. One of
+  them is also plainly wrong: rot 0/0 with T2 mirrored (the v2 configuration) has a zero-jumper layout,
+  `solver/results/negotiated/r00_m01_c48_t6-27_tr0_o45_h7_s4.py` (valid, but loop area 372 vs v3's 200).
+  The other, rot 0/0 unmirrored, is still open: 70 router attempts found nothing, which proves nothing.
 - v3 CP-SAT model (`solver/cpsat_route.py`) validated against v2: accepts it when the two jumper
   holes may be shared, proves it invalid otherwise, rebuilds it from a hint. Details in
   `solver/results/validation.jsonl`. It is too slow to prove anything on the tight full problem.
