@@ -117,8 +117,12 @@ python3 solver/memguard.py 6000 -- python3 solver/cpsat_route.py IN_ROT OUT_ROT 
 python3 drawing/routing.py && python3 drawing/routing.py --mirror   # writes outputs/*.png/.svg
 python3 drawing/build_doc.py                       # writes outputs/FOH-iso-board_bench-sheet.pdf
 ```
-Run scripts from the repo root. The drawing scripts read `solver/routes_v2.py`; point them at
-your new route file when you have one.
+Run scripts from the repo root. The drawing scripts read `solver/routes_v3.py` by default (pass
+`--routes FILE` for another layout); the sheet text is generated from the routes file. Move the
+results into `outputs/current/` when they are the recommended build.
+
+**Status, 13 Sept:** outcome A reached. `solver/routes_v3.py` is a zero-jumper layout on the
+planned 48 x 17 board with no components moved; see `docs/STATE-OF-PLAY.md`.
 
 ## Style notes for the user-facing deliverables
 
