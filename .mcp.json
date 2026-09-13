@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "perfboarder": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@perfboarder/mcp"
+      ],
+      "env": {}
+    }
+  }
+}
